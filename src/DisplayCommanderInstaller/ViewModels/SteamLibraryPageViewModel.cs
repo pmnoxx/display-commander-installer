@@ -30,11 +30,35 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(SelectedGameTitle));
         OnPropertyChanged(nameof(SelectedGamePathDisplay));
+        OnPropertyChanged(nameof(WinMmInstallStatusText));
     }
 
     public string SelectedGameTitle => SelectedGame?.Name ?? "Select a game";
 
     public string SelectedGamePathDisplay => SelectedGame?.CommonInstallPath ?? "";
+
+    public string WinMmInstallStatusText
+    {
+        get
+        {
+            if (SelectedGame is null)
+                return "Select a game to see winmm.dll status.";
+            var dir = SelectedGame.CommonInstallPath;
+            if (string.IsNullOrWhiteSpace(dir))
+                return "No install folder is set for this game.";
+
+            var state = AppServices.Install.GetWinMmState(dir, out _);
+            return state switch
+            {
+                WinMmInstallKind.None => "winmm.dll is not installed in this game folder.",
+                WinMmInstallKind.Ours => "Display Commander is installed as winmm.dll (managed by this app).",
+                WinMmInstallKind.UnknownForeign => "winmm.dll is present but is not from this installer (different file or missing marker).",
+                _ => "",
+            };
+        }
+    }
+
+    public void RefreshWinMmInstallStatus() => OnPropertyChanged(nameof(WinMmInstallStatusText));
 
     [RelayCommand]
     private async Task RefreshAsync()

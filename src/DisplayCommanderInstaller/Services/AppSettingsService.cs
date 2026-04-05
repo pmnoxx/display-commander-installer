@@ -1,26 +1,54 @@
-using Windows.Storage;
+using System.IO;
 
 namespace DisplayCommanderInstaller.Services;
 
+/// <summary>
+/// Persists settings under %LocalAppData%\DisplayCommanderInstaller.
+/// Unpackaged WinUI apps have no package identity, so Windows.Storage.ApplicationData is not used.
+/// </summary>
 public sealed class AppSettingsService
 {
     public const string DefaultDisplayCommanderDownloadUrl =
         "https://github.com/pmnoxx/display-commander/releases/download/latest_build/zzz_display_commander.addon64";
 
-    private const string DcDownloadUrlKey = "DcDownloadUrl";
+    private static string StoreDirectory =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DisplayCommanderInstaller");
 
-    private static ApplicationDataContainer Local => ApplicationData.Current.LocalSettings;
+    private static string DownloadUrlFilePath => Path.Combine(StoreDirectory, "display-commander-download-url.txt");
 
     public string DisplayCommanderDownloadUrl
     {
         get
         {
-            if (Local.Values.TryGetValue(DcDownloadUrlKey, out var v) && v is string s && !string.IsNullOrWhiteSpace(s))
-                return s.Trim();
-            return DefaultDisplayCommanderDownloadUrl;
+            try
+            {
+                if (!File.Exists(DownloadUrlFilePath))
+                    return DefaultDisplayCommanderDownloadUrl;
+                var s = File.ReadAllText(DownloadUrlFilePath).Trim();
+                return string.IsNullOrWhiteSpace(s) ? DefaultDisplayCommanderDownloadUrl : s;
+            }
+            catch
+            {
+                return DefaultDisplayCommanderDownloadUrl;
+            }
         }
-        set => Local.Values[DcDownloadUrlKey] = value.Trim();
+        set
+        {
+            Directory.CreateDirectory(StoreDirectory);
+            File.WriteAllText(DownloadUrlFilePath, value.Trim());
+        }
     }
 
-    public void ResetDisplayCommanderDownloadUrl() => Local.Values.Remove(DcDownloadUrlKey);
+    public void ResetDisplayCommanderDownloadUrl()
+    {
+        try
+        {
+            if (File.Exists(DownloadUrlFilePath))
+                File.Delete(DownloadUrlFilePath);
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
 }

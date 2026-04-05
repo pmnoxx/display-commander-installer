@@ -74,6 +74,10 @@ public sealed partial class LibraryPage : Page
             ActionStatus.Visibility = Visibility.Visible;
             ActionStatus.Text = "Install failed: " + ex.Message;
         }
+        finally
+        {
+            ViewModel.RefreshWinMmInstallStatus();
+        }
     }
 
     private async void Remove_Click(object sender, RoutedEventArgs e)
@@ -87,6 +91,7 @@ public sealed partial class LibraryPage : Page
             AppServices.Install.RemoveIfOurs(gameDir);
             ActionStatus.Visibility = Visibility.Visible;
             ActionStatus.Text = "Removed winmm.dll and installer marker.";
+            ViewModel.RefreshWinMmInstallStatus();
         }
         catch (Exception ex)
         {
@@ -120,6 +125,27 @@ public sealed partial class LibraryPage : Page
         {
             ActionStatus.Visibility = Visibility.Visible;
             ActionStatus.Text = "Could not open folder.";
+        }
+    }
+
+    private void StartGame_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedGame is null)
+            return;
+
+        var appId = ViewModel.SelectedGame.AppId;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"steam://rungameid/{appId}",
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not start game. Is Steam installed?";
         }
     }
 }
