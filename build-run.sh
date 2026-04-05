@@ -18,4 +18,6 @@ if [[ ! -f "$exe" ]]; then
   exit 1
 fi
 
-exec "$exe" "$@"
+# Start the app without blocking the shell (do not use exec).
+"$exe" "$@" &
+disown 2>/dev/null || true

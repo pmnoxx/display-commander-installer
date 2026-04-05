@@ -44,7 +44,6 @@
                 <DataTemplate x:DataType="models:SteamGameEntry" xmlns:models="using:DisplayCommanderInstaller.Core.Models">
                     <StackPanel Padding="4,6" Spacing="2">
                         <TextBlock FontWeight="SemiBold" Text="{x:Bind Name}" />
-                        <TextBlock Opacity="0.7" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind AppId}" />
                         <TextBlock
                             Opacity="0.6"
                             Style="{ThemeResource CaptionTextBlockStyle}"

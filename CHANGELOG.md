@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Library page shows **game process** state (running / not running / unknown) for the resolved `.exe`, with **Stop** (`CloseMainWindow`) and **Kill** (`entireProcessTree`) when running. Polls every ~1.5s while a path is known; 32-bit games may not be detectable from a 64-bit app.
+- When the chosen **proxy DLL** exists in the game folder, the status line includes **version text** from Windows **file metadata** (`ProductVersion`, else `FileVersion`) read from that file (e.g. `winmm.dll`), even if this installer did not deploy it.
+
+### Changed
+
+- Steam library list rows show **name and install path** only (App ID is no longer shown on each row; search by App ID still works).
 
 ### Fixed
 

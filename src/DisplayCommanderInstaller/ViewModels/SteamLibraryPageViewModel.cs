@@ -83,14 +83,29 @@ public partial class SteamLibraryPageViewModel : ObservableObject
             return state switch
             {
                 WinMmInstallKind.None => $"{proxy} is not installed in this game folder.",
-                WinMmInstallKind.Ours => $"Display Commander is installed as {proxy} (managed by this app).",
-                WinMmInstallKind.UnknownForeign => $"{proxy} is present but is not from this installer (different file or missing marker).",
+                WinMmInstallKind.Ours => FormatOursInstallStatus(dir, proxy),
+                WinMmInstallKind.UnknownForeign => AppendProxyDllVersionLine(
+                    dir,
+                    proxy,
+                    $"{proxy} is present but is not from this installer (different file or missing marker)."),
                 _ => "",
             };
         }
     }
 
     public void RefreshWinMmInstallStatus() => OnPropertyChanged(nameof(WinMmInstallStatusText));
+
+    private static string FormatOursInstallStatus(string gameDir, string proxy) =>
+        AppendProxyDllVersionLine(
+            gameDir,
+            proxy,
+            $"Display Commander is installed as {proxy} (managed by this app).");
+
+    private static string AppendProxyDllVersionLine(string gameDir, string proxy, string line)
+    {
+        var ver = AppServices.Install.TryGetManagedPayloadFileVersionSummary(gameDir, proxy);
+        return string.IsNullOrEmpty(ver) ? line : $"{line}\n{ver}";
+    }
 
     /// <summary>Re-sorts the visible list (e.g. after recording a play). Preserves current filter text.</summary>
     public void RefreshFilteredGameOrder() => ApplyFilter();

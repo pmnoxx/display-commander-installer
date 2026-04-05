@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -147,6 +148,33 @@ public sealed class DisplayCommanderInstallService
         var markerPath = Path.Combine(gameDirectory, MarkerFileName);
         TryDelete(dllPath);
         TryDelete(markerPath);
+    }
+
+    /// <summary>PE version resource from the proxy DLL on disk (e.g. winmm.dll) when that file exists, regardless of install marker.</summary>
+    public string? TryGetManagedPayloadFileVersionSummary(string gameDirectory, string proxyDllFileName)
+    {
+        if (!DisplayCommanderManagedProxyDlls.TryNormalize(proxyDllFileName, out var normalized))
+            return null;
+
+        var dllPath = Path.Combine(gameDirectory, normalized);
+        if (!File.Exists(dllPath))
+            return null;
+
+        try
+        {
+            var vi = FileVersionInfo.GetVersionInfo(dllPath);
+            var product = vi.ProductVersion?.Trim();
+            if (!string.IsNullOrWhiteSpace(product))
+                return $"Display Commander (from {normalized}): {product}";
+            var file = vi.FileVersion?.Trim();
+            if (!string.IsNullOrWhiteSpace(file))
+                return $"Display Commander (from {normalized}): {file}";
+            return $"Display Commander (from {normalized}): no version in file metadata";
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string EffectiveProxyName(InstallMarker marker)
