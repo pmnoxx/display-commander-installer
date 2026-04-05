@@ -20,6 +20,7 @@ public sealed partial class LibraryPage : Page
         ViewModel = new SteamLibraryPageViewModel(DispatcherQueue.GetForCurrentThread()!);
         DataContext = ViewModel;
         Loaded += async (_, _) => await ViewModel.RefreshCommand.ExecuteAsync(CancellationToken.None);
+        Unloaded += (_, _) => ViewModel.OnPageUnloaded();
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -174,6 +175,7 @@ public sealed partial class LibraryPage : Page
             });
             AppServices.SteamLastPlayed.RecordPlayed(appId);
             ViewModel.RefreshFilteredGameOrder();
+            ScheduleProcessStatusRefresh();
         }
         catch
         {
@@ -206,11 +208,35 @@ public sealed partial class LibraryPage : Page
             });
             AppServices.SteamLastPlayed.RecordPlayed(ViewModel.SelectedGame.AppId);
             ViewModel.RefreshFilteredGameOrder();
+            ScheduleProcessStatusRefresh();
         }
         catch (Exception ex)
         {
             ActionStatus.Visibility = Visibility.Visible;
             ActionStatus.Text = "Could not start executable: " + ex.Message;
         }
+    }
+
+    private async void ScheduleProcessStatusRefresh()
+    {
+        try
+        {
+            await System.Threading.Tasks.Task.Delay(1500);
+            ViewModel.RequestGameProcessRefresh();
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private void StopGameProcess_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.StopSelectedGameProcess();
+    }
+
+    private void KillGameProcess_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.KillSelectedGameProcess();
     }
 }

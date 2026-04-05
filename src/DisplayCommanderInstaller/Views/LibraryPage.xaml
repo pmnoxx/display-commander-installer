@@ -73,6 +73,11 @@
                 Text="{x:Bind ViewModel.SelectedGameArchitectureDisplay, Mode=OneWay}"
                 TextWrapping="WrapWholeWords" />
             <TextBlock
+                Opacity="0.88"
+                Style="{ThemeResource BodyStrongTextBlockStyle}"
+                Text="{x:Bind ViewModel.SelectedGameProcessStatusText, Mode=OneWay}"
+                TextWrapping="WrapWholeWords" />
+            <TextBlock
                 Opacity="0.9"
                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                 Text="{x:Bind ViewModel.WinMmInstallStatusText, Mode=OneWay}"
@@ -86,6 +91,14 @@
                     Click="StartViaExe_Click"
                     Content="Start via exe"
                     IsEnabled="{x:Bind ViewModel.CanStartSelectedGameViaExe, Mode=OneWay}" />
+                <Button
+                    Click="StopGameProcess_Click"
+                    Content="Stop"
+                    IsEnabled="{x:Bind ViewModel.IsSelectedGameExecutableRunning, Mode=OneWay}" />
+                <Button
+                    Click="KillGameProcess_Click"
+                    Content="Kill"
+                    IsEnabled="{x:Bind ViewModel.IsSelectedGameExecutableRunning, Mode=OneWay}" />
             </StackPanel>
             <TextBlock
                 x:Name="ActionStatus"

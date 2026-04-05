@@ -15,6 +15,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     private readonly List<SteamGameEntry> _all = new();
     private readonly DispatcherQueue _dispatcher;
     private CancellationTokenSource? _architectureDetectCts;
+    private DispatcherQueueTimer? _gameRunPollTimer;
 
     public SteamLibraryPageViewModel(DispatcherQueue dispatcher)
     {
@@ -46,6 +47,12 @@ public partial class SteamLibraryPageViewModel : ObservableObject
 
     [ObservableProperty]
     private bool canStartSelectedGameViaExe;
+
+    [ObservableProperty]
+    private bool isSelectedGameExecutableRunning;
+
+    [ObservableProperty]
+    private string selectedGameProcessStatusText = "Game process: —";
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
@@ -88,6 +95,41 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     /// <summary>Re-sorts the visible list (e.g. after recording a play). Preserves current filter text.</summary>
     public void RefreshFilteredGameOrder() => ApplyFilter();
 
+    /// <summary>Stop background timers (e.g. when the library page is unloaded).</summary>
+    public void OnPageUnloaded()
+    {
+        StopGameRunPolling();
+        _architectureDetectCts?.Cancel();
+    }
+
+    public void RequestGameProcessRefresh() => PollGameRunningState();
+
+    public void StopSelectedGameProcess()
+    {
+        var path = SelectedGameExecutablePath;
+        if (string.IsNullOrEmpty(path))
+            return;
+        GameExecutableProcessHelper.TryCloseMainWindows(path);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(400).ConfigureAwait(false);
+            _dispatcher.TryEnqueue(PollGameRunningState);
+        });
+    }
+
+    public void KillSelectedGameProcess()
+    {
+        var path = SelectedGameExecutablePath;
+        if (string.IsNullOrEmpty(path))
+            return;
+        GameExecutableProcessHelper.TryKillProcesses(path);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(400).ConfigureAwait(false);
+            _dispatcher.TryEnqueue(PollGameRunningState);
+        });
+    }
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
@@ -124,6 +166,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         _architectureDetectCts?.Cancel();
         _architectureDetectCts?.Dispose();
         _architectureDetectCts = null;
+        StopGameRunPolling();
 
         if (value is null)
         {
@@ -131,6 +174,8 @@ public partial class SteamLibraryPageViewModel : ObservableObject
             SelectedGameExecutableBitness = GameExecutableBitness.Unknown;
             SelectedGameArchitectureDisplay = "Select a game to detect executable architecture.";
             CanStartSelectedGameViaExe = false;
+            IsSelectedGameExecutableRunning = false;
+            SelectedGameProcessStatusText = "Game process: —";
             return;
         }
 
@@ -138,6 +183,8 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         SelectedGameExecutablePath = null;
         SelectedGameExecutableBitness = GameExecutableBitness.Unknown;
         CanStartSelectedGameViaExe = false;
+        IsSelectedGameExecutableRunning = false;
+        SelectedGameProcessStatusText = "Game process: …";
 
         var game = value;
         var cts = new CancellationTokenSource();
@@ -181,6 +228,77 @@ public partial class SteamLibraryPageViewModel : ObservableObject
             SelectedGameExecutableBitness = bitness;
             SelectedGameArchitectureDisplay = displayLine;
             CanStartSelectedGameViaExe = !string.IsNullOrEmpty(exePath) && File.Exists(exePath);
+            if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+            {
+                IsSelectedGameExecutableRunning = false;
+                SelectedGameProcessStatusText = "Game process: unknown (no resolved .exe)";
+                StopGameRunPolling();
+            }
+            else
+                StartGameRunPolling();
+        });
+    }
+
+    private void EnsureGameRunPollTimer()
+    {
+        if (_gameRunPollTimer is not null)
+            return;
+        _gameRunPollTimer = _dispatcher.CreateTimer();
+        _gameRunPollTimer.Interval = TimeSpan.FromSeconds(1.5);
+        _gameRunPollTimer.Tick += (_, _) => PollGameRunningState();
+    }
+
+    private void StartGameRunPolling()
+    {
+        EnsureGameRunPollTimer();
+        PollGameRunningState();
+        _gameRunPollTimer!.Start();
+    }
+
+    private void StopGameRunPolling()
+    {
+        if (_gameRunPollTimer is not null)
+            _gameRunPollTimer.Stop();
+        IsSelectedGameExecutableRunning = false;
+    }
+
+    private void PollGameRunningState()
+    {
+        var path = SelectedGameExecutablePath;
+        if (SelectedGame is null)
+        {
+            IsSelectedGameExecutableRunning = false;
+            SelectedGameProcessStatusText = "Game process: —";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            IsSelectedGameExecutableRunning = false;
+            SelectedGameProcessStatusText = "Game process: unknown (no resolved .exe)";
+            return;
+        }
+
+        var pathCopy = path;
+        _ = Task.Run(() =>
+        {
+            bool running;
+            try
+            {
+                running = GameExecutableProcessHelper.IsRunning(pathCopy);
+            }
+            catch
+            {
+                running = false;
+            }
+
+            _dispatcher.TryEnqueue(() =>
+            {
+                if (!string.Equals(SelectedGameExecutablePath, pathCopy, StringComparison.OrdinalIgnoreCase))
+                    return;
+                IsSelectedGameExecutableRunning = running;
+                SelectedGameProcessStatusText = running ? "Game process: running" : "Game process: not running";
+            });
         });
     }
 
