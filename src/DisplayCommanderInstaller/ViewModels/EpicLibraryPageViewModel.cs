@@ -3,6 +3,7 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DisplayCommanderInstaller.Core.Binary;
+using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.Models;
 using DisplayCommanderInstaller.Core.Steam;
@@ -11,22 +12,22 @@ using Microsoft.UI.Dispatching;
 
 namespace DisplayCommanderInstaller.ViewModels;
 
-public partial class SteamLibraryPageViewModel : ObservableObject
+public partial class EpicLibraryPageViewModel : ObservableObject
 {
-    private readonly List<SteamGameEntry> _all = new();
+    private readonly List<EpicGameEntry> _all = new();
     private readonly DispatcherQueue _dispatcher;
     private CancellationTokenSource? _architectureDetectCts;
     private DispatcherQueueTimer? _gameRunPollTimer;
 
-    public SteamLibraryPageViewModel(DispatcherQueue dispatcher)
+    public EpicLibraryPageViewModel(DispatcherQueue dispatcher)
     {
         _dispatcher = dispatcher;
     }
 
-    public ObservableCollection<SteamGameEntry> FilteredGames { get; } = new();
+    public ObservableCollection<EpicGameEntry> FilteredGames { get; } = new();
 
     [ObservableProperty]
-    private SteamGameEntry? selectedGame;
+    private EpicGameEntry? selectedGame;
 
     [ObservableProperty]
     private string searchText = "";
@@ -35,7 +36,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     private bool isBusy;
 
     [ObservableProperty]
-    private string statusMessage = "Click Refresh to load your Steam library.";
+    private string statusMessage = "Click Refresh to load your Epic library.";
 
     [ObservableProperty]
     private string? selectedGameExecutablePath;
@@ -81,13 +82,14 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedGameChanged(SteamGameEntry? value)
+    partial void OnSelectedGameChanged(EpicGameEntry? value)
     {
         OnPropertyChanged(nameof(SelectedGameTitle));
         OnPropertyChanged(nameof(SelectedGamePathDisplay));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(WinMmInstallStatusText));
-        OnPropertyChanged(nameof(CanOpenSteamStore));
+        OnPropertyChanged(nameof(CanOpenEpicLauncher));
+        OnPropertyChanged(nameof(CanSearchEpicStore));
         OnPropertyChanged(nameof(SelectedGameIsFavorite));
         OnPropertyChanged(nameof(FavoriteToggleButtonLabel));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
@@ -111,10 +113,13 @@ public partial class SteamLibraryPageViewModel : ObservableObject
 
     public void RefreshAddonFilesDisplay() => OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
 
-    public bool CanOpenSteamStore => SelectedGame is not null;
+    public bool CanOpenEpicLauncher =>
+        SelectedGame is not null && EpicGameLauncherLinks.TryGetLaunchUri(SelectedGame) is not null;
+
+    public bool CanSearchEpicStore => SelectedGame is not null;
 
     public bool SelectedGameIsFavorite =>
-        SelectedGame is not null && AppServices.SteamFavorites.IsFavorite(SelectedGame.AppId);
+        SelectedGame is not null && AppServices.EpicFavorites.IsFavorite(SelectedGame.StableKey);
 
     public string FavoriteToggleButtonLabel =>
         SelectedGame is null ? "Favorite" : (SelectedGameIsFavorite ? "Remove favorite" : "Add favorite");
@@ -123,8 +128,9 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     {
         if (SelectedGame is null)
             return;
-        var fav = AppServices.SteamFavorites;
-        fav.SetFavorite(SelectedGame.AppId, !fav.IsFavorite(SelectedGame.AppId));
+        var fav = AppServices.EpicFavorites;
+        var key = SelectedGame.StableKey;
+        fav.SetFavorite(key, !fav.IsFavorite(key));
         OnPropertyChanged(nameof(SelectedGameIsFavorite));
         OnPropertyChanged(nameof(FavoriteToggleButtonLabel));
         ApplyFilter();
@@ -132,7 +138,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
 
     public string SelectedGameTitle => SelectedGame?.Name ?? "Select a game";
 
-    public string SelectedGamePathDisplay => SelectedGame?.CommonInstallPath ?? "";
+    public string SelectedGamePathDisplay => SelectedGame?.InstallLocation ?? "";
 
     public string SelectedGameAddonPayloadsDisplay
     {
@@ -140,7 +146,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         {
             if (SelectedGame is null)
                 return "";
-            var dir = SelectedGame.CommonInstallPath;
+            var dir = SelectedGame.InstallLocation;
             if (string.IsNullOrWhiteSpace(dir))
                 return "";
             var names = GameFolderAddonPayloadFiles.ListFileNamesInDirectory(dir);
@@ -156,7 +162,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         {
             if (SelectedGame is null)
                 return "Select a game to see proxy DLL status.";
-            var dir = SelectedGame.CommonInstallPath;
+            var dir = SelectedGame.InstallLocation;
             if (string.IsNullOrWhiteSpace(dir))
                 return "No install folder is set for this game.";
 
@@ -189,10 +195,8 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         return string.IsNullOrEmpty(ver) ? line : $"{line}\n{ver}";
     }
 
-    /// <summary>Re-sorts the visible list (e.g. after recording a play). Preserves current filter text.</summary>
     public void RefreshFilteredGameOrder() => ApplyFilter();
 
-    /// <summary>Stop background timers (e.g. when the library page is unloaded).</summary>
     public void OnPageUnloaded()
     {
         StopGameRunPolling();
@@ -233,20 +237,23 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         if (IsBusy)
             return;
         IsBusy = true;
-        StatusMessage = "Scanning Steam library…";
+        StatusMessage = "Scanning Epic library…";
         try
         {
             await AppServices.RenoDxCatalog.EnsureLoadedAsync();
             await Task.Run(() =>
             {
-                var games = AppServices.Scanner.ScanInstalledGames();
+                var games = AppServices.EpicScanner.ScanInstalledGames();
                 var catalog = AppServices.RenoDxCatalog.Catalog;
-                var merged = games.Select(g => new SteamGameEntry
+                var merged = games.Select(g => new EpicGameEntry
                 {
-                    AppId = g.AppId,
+                    StableKey = g.StableKey,
                     Name = g.Name,
-                    CommonInstallPath = g.CommonInstallPath,
+                    InstallLocation = g.InstallLocation,
                     ManifestPath = g.ManifestPath,
+                    CatalogNamespace = g.CatalogNamespace,
+                    CatalogItemId = g.CatalogItemId,
+                    AppName = g.AppName,
                     HasRenoDxWikiListing = catalog.TryGetWikiListing(g.Name, out var renoDxUrl, out var renoDxUntrustedRef),
                     RenoDxSafeAddonUrl = renoDxUrl,
                     RenoDxUntrustedReferenceUrl = renoDxUntrustedRef,
@@ -258,11 +265,11 @@ public partial class SteamLibraryPageViewModel : ObservableObject
                 }
             });
             ApplyFilter();
-            StatusMessage = $"Found {_all.Count} installed Steam games.";
+            StatusMessage = $"Found {_all.Count} installed Epic games.";
         }
         catch (Exception ex)
         {
-            StatusMessage = "Steam scan failed: " + ex.Message;
+            StatusMessage = "Epic scan failed: " + ex.Message;
         }
         finally
         {
@@ -270,7 +277,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         }
     }
 
-    private void RestartArchitectureDetection(SteamGameEntry? value)
+    private void RestartArchitectureDetection(EpicGameEntry? value)
     {
         _architectureDetectCts?.Cancel();
         _architectureDetectCts?.Dispose();
@@ -305,7 +312,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
             try
             {
                 token.ThrowIfCancellationRequested();
-                var exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(game, token);
+                var exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(game.InstallLocation, game.Name, token);
                 if (exe is null)
                 {
                     PostArchitectureResult(game, token, null, GameExecutableBitness.Unknown, "Could not detect — no suitable EXE in game folder.");
@@ -324,7 +331,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         }, token);
     }
 
-    private void PostArchitectureResult(SteamGameEntry game, CancellationToken token, string? exePath, GameExecutableBitness bitness, string displayLine)
+    private void PostArchitectureResult(EpicGameEntry game, CancellationToken token, string? exePath, GameExecutableBitness bitness, string displayLine)
     {
         _dispatcher.TryEnqueue(() =>
         {
@@ -426,26 +433,27 @@ public partial class SteamLibraryPageViewModel : ObservableObject
 
     private void ApplyFilter()
     {
-        List<SteamGameEntry> snapshot;
+        List<EpicGameEntry> snapshot;
         lock (_all)
             snapshot = _all.ToList();
 
         var q = SearchText.Trim();
-        IEnumerable<SteamGameEntry> query = snapshot;
+        IEnumerable<EpicGameEntry> query = snapshot;
         if (q.Length > 0)
         {
             query = snapshot.Where(g =>
                 g.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                g.AppId.ToString().Contains(q, StringComparison.Ordinal) ||
-                g.CommonInstallPath.Contains(q, StringComparison.OrdinalIgnoreCase));
+                g.StableKey.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                g.InstallLocation.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                (g.CatalogItemId?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
         switch (ListFilter)
         {
             case LibraryGameListFilter.Favorites:
             {
-                var fav = AppServices.SteamFavorites;
-                query = query.Where(g => fav.IsFavorite(g.AppId));
+                var fav = AppServices.EpicFavorites;
+                query = query.Where(g => fav.IsFavorite(g.StableKey));
                 break;
             }
             case LibraryGameListFilter.RenoDx:
@@ -457,9 +465,9 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         }
 
         FilteredGames.Clear();
-        var lastPlayed = AppServices.SteamLastPlayed;
+        var lastPlayed = AppServices.EpicLastPlayed;
         foreach (var g in query
-                     .OrderByDescending(g => lastPlayed.TryGetLastPlayedUtc(g.AppId) ?? DateTimeOffset.MinValue)
+                     .OrderByDescending(g => lastPlayed.TryGetLastPlayedUtc(g.StableKey) ?? DateTimeOffset.MinValue)
                      .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
             FilteredGames.Add(g);
 

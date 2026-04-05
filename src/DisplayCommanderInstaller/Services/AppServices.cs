@@ -1,3 +1,4 @@
+using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.Steam;
 
 namespace DisplayCommanderInstaller.Services;
@@ -5,8 +6,14 @@ namespace DisplayCommanderInstaller.Services;
 public static class AppServices
 {
     public static SteamLibraryScanner Scanner { get; } = new();
+    public static EpicLibraryScanner EpicScanner { get; } = new();
     public static AppSettingsService Settings { get; } = new();
     public static DisplayCommanderInstallService Install { get; } = new();
     public static DisplayCommanderConfigMarkerService DisplayCommanderConfigMarker { get; } = new();
     public static SteamGameLastPlayedStore SteamLastPlayed { get; } = new();
+    public static SteamGameFavoriteStore SteamFavorites { get; } = new();
+    public static EpicGameLastPlayedStore EpicLastPlayed { get; } = new();
+    public static EpicGameFavoriteStore EpicFavorites { get; } = new();
+    public static RenoDxModCatalogService RenoDxCatalog { get; } = new();
+    public static RenoDxAddonDownloadService RenoDxAddonDownload { get; } = new();
 }

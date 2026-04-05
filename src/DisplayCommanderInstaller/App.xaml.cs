@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
+using DisplayCommanderInstaller.Services;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
@@ -35,6 +37,35 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+        UnhandledException += (_, e) => TryAppendLog("UnhandledException", e.Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            TryAppendLog("UnobservedTaskException", e.Exception);
+            e.SetObserved();
+        };
+    }
+
+    /// <summary>Best-effort append to %LocalAppData%\DisplayCommanderInstaller\logs\app.log (UTF-8).</summary>
+    internal static void TryAppendLog(string context, Exception? ex)
+    {
+        if (ex is null)
+            return;
+        try
+        {
+            var root = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "DisplayCommanderInstaller",
+                "logs");
+            Directory.CreateDirectory(root);
+            var path = System.IO.Path.Combine(root, "app.log");
+            File.AppendAllText(
+                path,
+                $"[{DateTimeOffset.Now:O}] {context}\n{ex}\n---\n");
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     /// <summary>
@@ -43,6 +74,7 @@ public partial class App : Application
     /// <param name="args">Details about the launch request and process.</param>
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        _ = AppServices.RenoDxCatalog.EnsureLoadedAsync();
         _window = new MainWindow();
         _window.Activate();
     }

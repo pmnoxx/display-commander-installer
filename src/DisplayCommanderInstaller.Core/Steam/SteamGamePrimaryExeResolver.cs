@@ -12,10 +12,18 @@ public static class SteamGamePrimaryExeResolver
     public static string? TryResolvePrimaryExe(SteamGameEntry game, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(game);
-        var root = game.CommonInstallPath;
-        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        return TryResolvePrimaryExe(game.CommonInstallPath, game.Name, cancellationToken);
+    }
+
+    /// <summary>
+    /// Picks a plausible game .exe under an install folder (Steam <c>common/{installdir}</c>, Epic <see cref="Models.EpicGameEntry"/>, etc.).
+    /// </summary>
+    public static string? TryResolvePrimaryExe(string installRoot, string displayName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(installRoot) || !Directory.Exists(installRoot))
             return null;
 
+        var root = installRoot;
         var candidates = CollectCandidates(root, cancellationToken);
         if (candidates.Count == 0)
         {
@@ -32,7 +40,7 @@ public static class SteamGamePrimaryExeResolver
             return candidates[0];
 
         var installdirName = new DirectoryInfo(root).Name;
-        var normalizedTitle = NormalizeGameTitle(game.Name);
+        var normalizedTitle = NormalizeGameTitle(displayName);
 
         static int Score(string path, string installdir, string normTitle)
         {

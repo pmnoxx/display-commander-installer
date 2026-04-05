@@ -9,16 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Epic Games** tab on the library page: scans `ProgramData\Epic\EpicGamesLauncher\Data\Manifests\*.item` for installed titles (same detail panel ideas as Steam: path, proxy status, architecture, **Install / Remove**, **Open folder**, **Search Epic Store**, **Start game** / **Start via exe**, **Stop** / **Kill**, process line). **Favorites** and **last played** persist under `%LocalAppData%\DisplayCommanderInstaller\` (`epic-favorites.json`, `epic-last-played.json`).
+- **RenoDX (Mods wiki)** integration: loads [RenoDX Mods](https://github.com/clshortfuse/renodx/wiki/Mods) raw markdown on app start and before library refresh; matches installed titles to wiki rows. **RenoDX** chip on any wiki-listed game. **Install / update RenoDX addon** only for addons hosted under `https://clshortfuse.github.io/renodx/` (`.addon32` / `.addon64`). For other listings, shows an **untrusted source** warning with the parsed wiki reference URL (open in browser) plus a link to the Mods wiki.
+- Library **Show** scope: **RadioButtons** for **All** / **Favorites** / **RenoDX** (replaces the favorites-only checkbox); **RenoDX** filter includes every wiki-matched title, not only trusted downloads.
+- Selected game panel lists **`.addon32` / `.addon64` files** present in the install folder (non-recursive).
+- **Crash diagnostics**: unhandled UI exceptions and unobserved task exceptions append to `%LocalAppData%\DisplayCommanderInstaller\logs\app.log`.
 - Library page shows **game process** state (running / not running / unknown) for the resolved `.exe`, with **Stop** (`CloseMainWindow`) and **Kill** (`entireProcessTree`) when running. Polls every ~1.5s while a path is known; 32-bit games may not be detectable from a 64-bit app.
 - When the chosen **proxy DLL** exists in the game folder, the status line includes **version text** from Windows **file metadata** (`ProductVersion`, else `FileVersion`) read from that file (e.g. `winmm.dll`), even if this installer did not deploy it.
+- Steam library **favorites**: **Add favorite** / **Remove favorite** (persisted by App ID under `%LocalAppData%\DisplayCommanderInstaller\steam-favorites.json`). Sort order unchanged (last played, then name).
 
 ### Changed
 
-- Steam library list rows show **name and install path** only (App ID is no longer shown on each row; search by App ID still works).
+- Library page uses a **Steam / Epic** tab view; list rows show **name and install path** only (Steam App ID is not shown on each row; search by App ID still works).
+- **Primary `.exe` resolver** accepts an install root and display name so the same heuristics serve **Steam** and **Epic** installs.
 
 ### Fixed
 
 - Game **running** detection: use **QueryFullProcessImageName** when `Process.MainModule` fails (common with games / anti-cheat) and normalize paths (`\\?\` prefix, full path) before comparing.
+- Library **RenoDX** UI: `BoolToVisibilityConverter` in **page** resources (reliable inside `ListView` templates) and **theme brushes** that exist on older Windows / theme dictionaries (`SystemControlBackgroundBaseLowBrush` instead of missing Fluent tokens).
 
 ## [0.0.2] - 2026-04-06
 

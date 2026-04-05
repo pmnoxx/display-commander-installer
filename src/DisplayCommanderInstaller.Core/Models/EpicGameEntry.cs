@@ -1,13 +1,21 @@
 namespace DisplayCommanderInstaller.Core.Models;
 
-/// <summary>Steam library game with install folder under steamapps/common.</summary>
-public sealed class SteamGameEntry
+/// <summary>Epic Games Launcher install described by a <c>ProgramData\Epic\EpicGamesLauncher\Data\Manifests\*.item</c> manifest.</summary>
+public sealed class EpicGameEntry
 {
-    public required uint AppId { get; init; }
+    /// <summary>Stable key for favorites / last-played (not shown in UI).</summary>
+    public required string StableKey { get; init; }
+
     public required string Name { get; init; }
-    /// <summary>Full path to steamapps/common/{installdir}.</summary>
-    public required string CommonInstallPath { get; init; }
+
+    /// <summary>Game root folder from the manifest <c>InstallLocation</c> field.</summary>
+    public required string InstallLocation { get; init; }
+
     public required string ManifestPath { get; init; }
+
+    public string? CatalogNamespace { get; init; }
+    public string? CatalogItemId { get; init; }
+    public string? AppName { get; init; }
 
     /// <summary>clshortfuse GitHub Pages addon URL when this title matches a wiki row that lists one; <c>null</c> if listed only via other hosts (no in-app download).</summary>
     public string? RenoDxSafeAddonUrl { get; init; }
