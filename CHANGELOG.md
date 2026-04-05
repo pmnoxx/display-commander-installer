@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Actions publishes a **Latest** release (tag `latest`) with a self-contained x64 zip on every push to `main` / `master`.
+
 ## [0.0.1] - 2026-04-05
 
 ### Added

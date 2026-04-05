@@ -10,6 +10,7 @@ TestResults/
 [Bb]uild[Ll]og.*
 *.log
 publish/
+artifacts/
 
 ## NuGet
 *.nupkg

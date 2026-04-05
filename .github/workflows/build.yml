@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: windows-latest
@@ -24,3 +27,56 @@ jobs:
 
       - name: Build WinUI (x64)
         run: dotnet build src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -c Release -p:Platform=x64 --no-restore
+
+  release-latest:
+    name: Publish Latest release
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: windows-latest
+    concurrency:
+      group: release-latest
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore DisplayCommanderInstaller.sln
+
+      - name: Publish WinUI (x64, self-contained)
+        run: dotnet publish src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -c Release -p:Platform=x64 -p:PublishProfile=Properties/PublishProfiles/win-x64.pubxml -o "${{ github.workspace }}/artifacts/win-x64" --no-restore
+
+      - name: Zip publish output
+        id: pack
+        shell: pwsh
+        run: |
+          $version = dotnet msbuild src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -getProperty:Version -nologo
+          $zip = "DisplayCommanderInstaller-$version-win-x64.zip"
+          $src = Join-Path "${{ github.workspace }}" "artifacts/win-x64"
+          Compress-Archive -Path (Join-Path $src "*") -DestinationPath (Join-Path "${{ github.workspace }}" $zip) -Force
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "zip_name=$zip" >> $env:GITHUB_OUTPUT
+
+      - name: Create or update Latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest
+          body: |
+            Self-contained **x64** Windows build (unpackaged folder — keep all files next to `DisplayCommanderInstaller.exe`).
+
+            - Version: **${{ steps.pack.outputs.version }}**
+            - Asset: `${{ steps.pack.outputs.zip_name }}`
+            - Commit: [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            - [CHANGELOG](${{ github.server_url }}/${{ github.repository }}/blob/main/CHANGELOG.md)
+          files: ${{ steps.pack.outputs.zip_name }}
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
