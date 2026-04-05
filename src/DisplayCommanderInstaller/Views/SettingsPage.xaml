@@ -32,6 +32,21 @@
             <TextBlock
                 Margin="0,24,0,0"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
+                Text="Display Commander" />
+            <CheckBox
+                x:Name="PerGameFolderCheck"
+                Checked="PerGameFolderCheck_Checked"
+                Content="Use per game folder"
+                IsThreeState="False"
+                Unchecked="PerGameFolderCheck_Unchecked" />
+            <TextBlock
+                Opacity="0.75"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="When enabled, creates .DC_CONFIG_GLOBAL next to the Display Commander program folder (%LocalAppData%\Programs\Display_Commander). When disabled, that file is removed."
+                TextWrapping="WrapWholeWords" />
+            <TextBlock
+                Margin="0,24,0,0"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
                 Text="Coming later" />
             <TextBlock
                 Opacity="0.75"
