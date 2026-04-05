@@ -13,7 +13,7 @@
             <TextBlock
                 Opacity="0.75"
                 Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="GitHub release asset URL (downloaded bytes are written as winmm.dll in the game folder). Use a tag or latest pattern that exists on the repo."
+                Text="GitHub release asset URL (downloaded bytes are written as the proxy DLL you choose below). Use a tag or latest pattern that exists on the repo. For 32-bit games, the installer substitutes addon32 for addon64 in this URL automatically."
                 TextWrapping="WrapWholeWords" />
             <TextBox
                 x:Name="UrlBox"
@@ -32,7 +32,20 @@
             <TextBlock
                 Margin="0,24,0,0"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
-                Text="Display Commander" />
+                Text="Proxy DLL" />
+            <TextBlock
+                Opacity="0.75"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="Which DLL name to drop next to the game executable. Installing a new choice removes any other Display Commander proxy this app previously installed in that folder (winmm, dxgi, version, dbghelp, vulkan-1)."
+                TextWrapping="WrapWholeWords" />
+            <ComboBox
+                x:Name="ProxyDllCombo"
+                MinWidth="280"
+                SelectionChanged="ProxyDllCombo_SelectionChanged" />
+            <TextBlock
+                Margin="0,24,0,0"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Text="Per-game folder" />
             <CheckBox
                 x:Name="PerGameFolderCheck"
                 Checked="PerGameFolderCheck_Checked"

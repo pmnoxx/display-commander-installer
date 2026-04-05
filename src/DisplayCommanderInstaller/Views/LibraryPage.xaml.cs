@@ -1,21 +1,31 @@
 using System.Diagnostics;
+using DisplayCommanderInstaller.Core;
+using DisplayCommanderInstaller.Core.Models;
 using DisplayCommanderInstaller.Services;
 using DisplayCommanderInstaller.ViewModels;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 
 namespace DisplayCommanderInstaller.Views;
 
 public sealed partial class LibraryPage : Page
 {
-    public SteamLibraryPageViewModel ViewModel { get; } = new();
+    public SteamLibraryPageViewModel ViewModel { get; }
 
     public LibraryPage()
     {
         InitializeComponent();
+        ViewModel = new SteamLibraryPageViewModel(DispatcherQueue.GetForCurrentThread()!);
         DataContext = ViewModel;
         Loaded += async (_, _) => await ViewModel.RefreshCommand.ExecuteAsync(CancellationToken.None);
+    }
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        ViewModel.RefreshWinMmInstallStatus();
     }
 
     private IProgress<string> CreateUiProgress()
@@ -36,17 +46,37 @@ public sealed partial class LibraryPage : Page
             return;
 
         var gameDir = ViewModel.SelectedGame.CommonInstallPath;
-        var url = AppServices.Settings.DisplayCommanderDownloadUrl;
         var install = AppServices.Install;
 
-        var state = install.GetWinMmState(gameDir, out _);
+        var bitness = ViewModel.SelectedGameExecutableBitness;
+        if (bitness == GameExecutableBitness.Unknown)
+        {
+            var archDlg = new ContentDialog
+            {
+                Title = "Executable architecture unknown",
+                Content = "Could not determine 32-bit vs 64-bit for this game. Install will use the 64-bit download URL from Settings (addon64). Continue?",
+                PrimaryButtonText = "Continue",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = XamlRoot!,
+            };
+            if (await archDlg.ShowAsync() != ContentDialogResult.Primary)
+                return;
+        }
+
+        var url = DisplayCommanderDownloadUrlResolver.Resolve(
+            AppServices.Settings.DisplayCommanderDownloadUrl,
+            bitness);
+
+        var proxy = AppServices.Settings.DisplayCommanderProxyDllFileName;
+        var state = install.GetInstallState(gameDir, proxy, out _);
         var allowForeign = false;
         if (state == WinMmInstallKind.UnknownForeign)
         {
             var dlg = new ContentDialog
             {
-                Title = "winmm.dll already exists",
-                Content = "Another file named winmm.dll is present. Overwrite it with Display Commander?",
+                Title = $"{proxy} already exists",
+                Content = $"Another file named {proxy} is present. Overwrite it with Display Commander?",
                 PrimaryButtonText = "Overwrite",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
@@ -65,6 +95,7 @@ public sealed partial class LibraryPage : Page
             await install.DownloadAndInstallAsync(
                 gameDir,
                 url,
+                proxy,
                 allowForeign,
                 CreateUiProgress(),
                 CancellationToken.None);
@@ -90,7 +121,7 @@ public sealed partial class LibraryPage : Page
         {
             AppServices.Install.RemoveIfOurs(gameDir);
             ActionStatus.Visibility = Visibility.Visible;
-            ActionStatus.Text = "Removed winmm.dll and installer marker.";
+            ActionStatus.Text = "Removed Display Commander proxy DLL and installer marker.";
             ViewModel.RefreshWinMmInstallStatus();
         }
         catch (Exception ex)
@@ -141,11 +172,45 @@ public sealed partial class LibraryPage : Page
                 FileName = $"steam://rungameid/{appId}",
                 UseShellExecute = true,
             });
+            AppServices.SteamLastPlayed.RecordPlayed(appId);
+            ViewModel.RefreshFilteredGameOrder();
         }
         catch
         {
             ActionStatus.Visibility = Visibility.Visible;
             ActionStatus.Text = "Could not start game. Is Steam installed?";
+        }
+    }
+
+    private void StartViaExe_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedGame is null)
+            return;
+
+        var exe = ViewModel.SelectedGameExecutablePath;
+        if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "No resolved game executable path.";
+            return;
+        }
+
+        var gameDir = ViewModel.SelectedGame.CommonInstallPath;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = exe,
+                WorkingDirectory = gameDir,
+                UseShellExecute = true,
+            });
+            AppServices.SteamLastPlayed.RecordPlayed(ViewModel.SelectedGame.AppId);
+            ViewModel.RefreshFilteredGameOrder();
+        }
+        catch (Exception ex)
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not start executable: " + ex.Message;
         }
     }
 }

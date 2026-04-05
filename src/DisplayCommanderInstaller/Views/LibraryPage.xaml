@@ -68,15 +68,24 @@
                 Text="{x:Bind ViewModel.SelectedGamePathDisplay, Mode=OneWay}"
                 TextWrapping="WrapWholeWords" />
             <TextBlock
+                Opacity="0.85"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="{x:Bind ViewModel.SelectedGameArchitectureDisplay, Mode=OneWay}"
+                TextWrapping="WrapWholeWords" />
+            <TextBlock
                 Opacity="0.9"
                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                 Text="{x:Bind ViewModel.WinMmInstallStatusText, Mode=OneWay}"
                 TextWrapping="WrapWholeWords" />
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Click="Install_Click" Content="Install Display Commander (winmm.dll)" />
+                <Button Click="Install_Click" Content="Install Display Commander" />
                 <Button Click="Remove_Click" Content="Remove" />
                 <Button Click="OpenFolder_Click" Content="Open folder" />
                 <Button Click="StartGame_Click" Content="Start game" />
+                <Button
+                    Click="StartViaExe_Click"
+                    Content="Start via exe"
+                    IsEnabled="{x:Bind ViewModel.CanStartSelectedGameViaExe, Mode=OneWay}" />
             </StackPanel>
             <TextBlock
                 x:Name="ActionStatus"

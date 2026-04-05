@@ -13,7 +13,6 @@ public enum WinMmInstallKind
 
 public sealed class DisplayCommanderInstallService
 {
-    public const string WinMmDllFileName = "winmm.dll";
     public const string MarkerFileName = ".display_commander_installer_marker.json";
 
     private static readonly HttpClient Http = CreateHttpClient();
@@ -25,12 +24,16 @@ public sealed class DisplayCommanderInstallService
         return c;
     }
 
-    public WinMmInstallKind GetWinMmState(string gameDirectory, out InstallMarker? marker)
+    /// <summary>State of <paramref name="proxyDllFileName"/> in the game folder (must be a managed proxy name).</summary>
+    public WinMmInstallKind GetInstallState(string gameDirectory, string proxyDllFileName, out InstallMarker? marker)
     {
         marker = null;
-        var dll = Path.Combine(gameDirectory, WinMmDllFileName);
+        if (!DisplayCommanderManagedProxyDlls.TryNormalize(proxyDllFileName, out var normalized))
+            return WinMmInstallKind.UnknownForeign;
+
+        var dllPath = Path.Combine(gameDirectory, normalized);
         var markerPath = Path.Combine(gameDirectory, MarkerFileName);
-        if (!File.Exists(dll))
+        if (!File.Exists(dllPath))
             return WinMmInstallKind.None;
 
         if (!File.Exists(markerPath))
@@ -49,7 +52,11 @@ public sealed class DisplayCommanderInstallService
         if (marker is null || string.IsNullOrWhiteSpace(marker.Sha256Hex))
             return WinMmInstallKind.UnknownForeign;
 
-        var actual = TryComputeSha256Hex(dll);
+        var effective = EffectiveProxyName(marker);
+        if (!effective.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+            return WinMmInstallKind.UnknownForeign;
+
+        var actual = TryComputeSha256Hex(dllPath);
         return string.Equals(actual, marker.Sha256Hex, StringComparison.OrdinalIgnoreCase)
             ? WinMmInstallKind.Ours
             : WinMmInstallKind.UnknownForeign;
@@ -58,20 +65,36 @@ public sealed class DisplayCommanderInstallService
     public async Task DownloadAndInstallAsync(
         string gameDirectory,
         string downloadUrl,
+        string proxyDllFileName,
         bool allowOverwriteForeign,
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(downloadUrl);
+        if (!DisplayCommanderManagedProxyDlls.TryNormalize(proxyDllFileName, out var normalized))
+            throw new ArgumentException("Invalid proxy DLL name.", nameof(proxyDllFileName));
+
         Directory.CreateDirectory(gameDirectory);
 
-        var dllPath = Path.Combine(gameDirectory, WinMmDllFileName);
         var markerPath = Path.Combine(gameDirectory, MarkerFileName);
+        var dllPath = Path.Combine(gameDirectory, normalized);
 
-        var state = GetWinMmState(gameDirectory, out _);
+        if (TryReadVerifiedOurs(gameDirectory, out var previousMarker, out var previousProxy))
+        {
+            if (!previousProxy.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                var oldPath = Path.Combine(gameDirectory, previousProxy);
+                progress?.Report($"Removing previous Display Commander proxy ({previousProxy})…");
+                TryDelete(oldPath);
+                TryDelete(markerPath);
+            }
+        }
+
+        var state = GetInstallState(gameDirectory, normalized, out _);
         if (state == WinMmInstallKind.UnknownForeign && !allowOverwriteForeign)
-            throw new InvalidOperationException("winmm.dll already exists and is not managed by this installer.");
+            throw new InvalidOperationException(
+                $"{normalized} already exists and is not managed by this installer.");
 
         progress?.Report("Downloading Display Commander…");
         var temp = Path.Combine(Path.GetTempPath(), "dc_install_" + Guid.NewGuid().ToString("N") + ".bin");
@@ -94,7 +117,7 @@ public sealed class DisplayCommanderInstallService
                 }
             }
 
-            progress?.Report("Installing winmm.dll…");
+            progress?.Report($"Installing {normalized}…");
             File.Copy(temp, dllPath, overwrite: true);
 
             var marker = new InstallMarker
@@ -103,10 +126,11 @@ public sealed class DisplayCommanderInstallService
                 Sha256Hex = sha,
                 SourceUrl = downloadUrl,
                 InstalledUtc = DateTimeOffset.UtcNow.ToString("O"),
+                ProxyDllFileName = normalized,
             };
             var markerJson = JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(markerPath, markerJson);
-            progress?.Report("Installed Display Commander as winmm.dll.");
+            progress?.Report($"Installed Display Commander as {normalized}.");
         }
         finally
         {
@@ -116,14 +140,57 @@ public sealed class DisplayCommanderInstallService
 
     public void RemoveIfOurs(string gameDirectory)
     {
-        var state = GetWinMmState(gameDirectory, out _);
-        if (state != WinMmInstallKind.Ours)
-            throw new InvalidOperationException("winmm.dll is not managed by this installer (missing marker or hash mismatch).");
+        if (!TryReadVerifiedOurs(gameDirectory, out _, out var proxy))
+            throw new InvalidOperationException("No Display Commander-managed proxy found in this folder (missing marker or hash mismatch).");
 
-        var dllPath = Path.Combine(gameDirectory, WinMmDllFileName);
+        var dllPath = Path.Combine(gameDirectory, proxy);
         var markerPath = Path.Combine(gameDirectory, MarkerFileName);
         TryDelete(dllPath);
         TryDelete(markerPath);
+    }
+
+    private static string EffectiveProxyName(InstallMarker marker)
+    {
+        if (string.IsNullOrWhiteSpace(marker.ProxyDllFileName))
+            return DisplayCommanderManagedProxyDlls.DefaultFileName;
+        return DisplayCommanderManagedProxyDlls.TryNormalize(marker.ProxyDllFileName, out var n)
+            ? n
+            : DisplayCommanderManagedProxyDlls.DefaultFileName;
+    }
+
+    private static bool TryReadVerifiedOurs(string gameDirectory, out InstallMarker marker, out string normalizedProxyName)
+    {
+        marker = null!;
+        normalizedProxyName = DisplayCommanderManagedProxyDlls.DefaultFileName;
+        var markerPath = Path.Combine(gameDirectory, MarkerFileName);
+        if (!File.Exists(markerPath))
+            return false;
+
+        InstallMarker? m;
+        try
+        {
+            m = JsonSerializer.Deserialize<InstallMarker>(File.ReadAllText(markerPath));
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (m is null || string.IsNullOrWhiteSpace(m.Sha256Hex))
+            return false;
+
+        var effective = EffectiveProxyName(m);
+        var dllPath = Path.Combine(gameDirectory, effective);
+        if (!File.Exists(dllPath))
+            return false;
+
+        var actual = TryComputeSha256Hex(dllPath);
+        if (!string.Equals(actual, m.Sha256Hex, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        marker = m;
+        normalizedProxyName = effective;
+        return true;
     }
 
     private static string ComputeSha256Hex(string filePath)

@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-04-06
+
 ### Added
 
 - GitHub Actions publishes a **Latest** release (tag `latest`) with a self-contained x64 zip on every push to `main` / `master`.
+- Library page detects selected game **executable architecture** (32 / 64 / ARM64) via PE headers; **Install** uses **addon32** in the download URL when the detected exe is 32-bit (derived from the Settings URL by replacing addon64). Unknown architecture prompts before using the 64-bit URL.
+- **Settings → Proxy DLL**: install Display Commander as `winmm.dll`, `dxgi.dll`, `version.dll`, `dbghelp.dll`, or `vulkan-1.dll`. Marker stores the active name; switching proxy **removes** the previously installed managed DLL before deploying the new one. **Remove** always clears the file recorded in the marker (any of the above).
+- **Start via exe** next to **Start game** — runs the resolved game `.exe` directly with the game install folder as working directory (enabled after architecture detection finds a path).
+- Steam library list is ordered by **most recently started here** (**Start game** or **Start via exe**), then alphabetically for titles never launched from this app. Timestamps persist under `%LocalAppData%\DisplayCommanderInstaller\steam-last-played.json`.
 
 ## [0.0.1] - 2026-04-05
 

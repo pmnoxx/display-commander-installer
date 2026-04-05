@@ -1,3 +1,4 @@
+using System.Linq;
 using DisplayCommanderInstaller.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -19,6 +20,10 @@ public sealed partial class SettingsPage : Page
         _uiInit = true;
         UrlBox.Text = AppServices.Settings.DisplayCommanderDownloadUrl;
         PerGameFolderCheck.IsChecked = AppServices.DisplayCommanderConfigMarker.UsePerGameFolder;
+        var names = DisplayCommanderManagedProxyDlls.AllFileNames.ToList();
+        ProxyDllCombo.ItemsSource = names;
+        var current = AppServices.Settings.DisplayCommanderProxyDllFileName;
+        ProxyDllCombo.SelectedItem = names.First(n => n.Equals(current, StringComparison.OrdinalIgnoreCase));
         _uiInit = false;
     }
 
@@ -40,6 +45,25 @@ public sealed partial class SettingsPage : Page
     private void PerGameFolderCheck_Checked(object sender, RoutedEventArgs e) => ApplyPerGameFolder(true);
 
     private void PerGameFolderCheck_Unchecked(object sender, RoutedEventArgs e) => ApplyPerGameFolder(false);
+
+    private void ProxyDllCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_uiInit)
+            return;
+        if (ProxyDllCombo.SelectedItem is not string name)
+            return;
+        try
+        {
+            AppServices.Settings.DisplayCommanderProxyDllFileName = name;
+            SettingsStatus.Text = $"Proxy DLL set to {name}.";
+            SettingsStatus.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex)
+        {
+            SettingsStatus.Text = "Could not save proxy DLL: " + ex.Message;
+            SettingsStatus.Visibility = Visibility.Visible;
+        }
+    }
 
     private void ApplyPerGameFolder(bool enabled)
     {

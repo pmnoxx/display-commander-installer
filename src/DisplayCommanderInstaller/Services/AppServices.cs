@@ -8,4 +8,5 @@ public static class AppServices
     public static AppSettingsService Settings { get; } = new();
     public static DisplayCommanderInstallService Install { get; } = new();
     public static DisplayCommanderConfigMarkerService DisplayCommanderConfigMarker { get; } = new();
+    public static SteamGameLastPlayedStore SteamLastPlayed { get; } = new();
 }
