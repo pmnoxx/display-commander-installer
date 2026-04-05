@@ -1,4 +1,4 @@
-# Display Commander Installer
+# Display Commander Installer (prototype - proof of concept)
 
 WinUI 3 desktop utility to browse your **Steam** library, search installed games, and install [Display Commander](https://github.com/pmnoxx/display-commander) as **`winmm.dll`** next to the game (download URL is configurable).
 
