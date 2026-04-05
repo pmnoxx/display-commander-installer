@@ -1,0 +1,23 @@
+## .NET / VS
+bin/
+obj/
+.vs/
+*.user
+*.userosscache
+*.suo
+*.cache
+TestResults/
+[Bb]uild[Ll]og.*
+*.log
+publish/
+
+## NuGet
+*.nupkg
+**/packages/
+
+## WinUI / MSIX
+AppPackages/
+BundleArtifacts/
+*.appx
+*.msix
+*.pfx

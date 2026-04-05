@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DisplayCommanderInstaller (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "DisplayCommanderInstaller (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

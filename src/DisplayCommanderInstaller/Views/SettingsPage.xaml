@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="DisplayCommanderInstaller.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <ScrollViewer>
+        <StackPanel Padding="24" Spacing="16" MaxWidth="720">
+            <TextBlock Style="{ThemeResource TitleTextBlockStyle}" Text="Settings" />
+            <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Display Commander download URL" />
+            <TextBlock
+                Opacity="0.75"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="GitHub release asset URL (downloaded bytes are written as winmm.dll in the game folder). Use a tag or latest pattern that exists on the repo."
+                TextWrapping="WrapWholeWords" />
+            <TextBox
+                x:Name="UrlBox"
+                AcceptsReturn="False"
+                TextWrapping="Wrap"
+                MinHeight="72" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Click="Save_Click" Content="Save" />
+                <Button Click="Reset_Click" Content="Reset to default" />
+            </StackPanel>
+            <TextBlock
+                x:Name="SettingsStatus"
+                Opacity="0.85"
+                TextWrapping="WrapWholeWords"
+                Visibility="Collapsed" />
+            <TextBlock
+                Margin="0,24,0,0"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Text="Coming later" />
+            <TextBlock
+                Opacity="0.75"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="ReShade (ReShade64.dll), RenoDX bundles, and other stores (Epic, GOG, Xbox) are intentionally deferred."
+                TextWrapping="WrapWholeWords" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>
