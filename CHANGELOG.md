@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Library page shows **game process** state (running / not running / unknown) for the resolved `.exe`, with **Stop** (`CloseMainWindow`) and **Kill** (`entireProcessTree`) when running. Polls every ~1.5s while a path is known; 32-bit games may not be detectable from a 64-bit app.
 
+### Fixed
+
+- Game **running** detection: use **QueryFullProcessImageName** when `Process.MainModule` fails (common with games / anti-cheat) and normalize paths (`\\?\` prefix, full path) before comparing.
+
 ## [0.0.2] - 2026-04-06
 
 ### Added

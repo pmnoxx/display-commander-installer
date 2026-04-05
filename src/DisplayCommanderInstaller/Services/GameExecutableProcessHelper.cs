@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace DisplayCommanderInstaller.Services;
 
-/// <summary>Finds processes whose main module path matches a game executable (best-effort; 32-bit targets may be invisible from a 64-bit app).</summary>
+/// <summary>Finds processes whose image path matches a game executable (uses Win32 QueryFullProcessImageName when MainModule fails).</summary>
 public static class GameExecutableProcessHelper
 {
     public static bool IsRunning(string fullExePath)
@@ -16,15 +16,9 @@ public static class GameExecutableProcessHelper
         if (string.IsNullOrWhiteSpace(fullExePath))
             return result;
 
-        string target;
-        try
-        {
-            target = Path.GetFullPath(fullExePath);
-        }
-        catch
-        {
-            target = fullExePath;
-        }
+        var targetNorm = NormalizePathForCompare(fullExePath);
+        if (string.IsNullOrEmpty(targetNorm))
+            return result;
 
         var stem = Path.GetFileNameWithoutExtension(fullExePath);
         if (string.IsNullOrEmpty(stem))
@@ -34,16 +28,16 @@ public static class GameExecutableProcessHelper
         {
             try
             {
-                var other = p.MainModule?.FileName;
-                if (string.IsNullOrEmpty(other))
+                var otherPath = TryGetProcessImagePath(p);
+                if (string.IsNullOrEmpty(otherPath))
                     continue;
-                var otherFull = Path.GetFullPath(other);
-                if (string.Equals(otherFull, target, StringComparison.OrdinalIgnoreCase))
+                var otherNorm = NormalizePathForCompare(otherPath);
+                if (PathsEqual(targetNorm, otherNorm))
                     result.Add(p.Id);
             }
             catch
             {
-                // Access denied or 32/64-bit mismatch
+                // ignore
             }
             finally
             {
@@ -53,6 +47,43 @@ public static class GameExecutableProcessHelper
 
         return result;
     }
+
+    private static string? TryGetProcessImagePath(Process p)
+    {
+        try
+        {
+            var main = p.MainModule?.FileName;
+            if (!string.IsNullOrEmpty(main))
+                return main;
+        }
+        catch
+        {
+            // Expected for many games / anti-cheat when querying another process.
+        }
+
+        return WindowsProcessImagePath.TryGet(p.Id);
+    }
+
+    /// <summary>Strip Win32 extended path prefix and full-path both sides for comparison.</summary>
+    private static string NormalizePathForCompare(string path)
+    {
+        try
+        {
+            var s = path.Trim();
+            if (s.StartsWith(@"\\?\", StringComparison.Ordinal))
+                s = s[4..];
+            if (s.StartsWith(@"\??\", StringComparison.Ordinal))
+                s = s[4..];
+            return Path.GetFullPath(s);
+        }
+        catch
+        {
+            return path.Trim();
+        }
+    }
+
+    private static bool PathsEqual(string a, string b) =>
+        string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     public static void TryCloseMainWindows(string fullExePath)
     {
