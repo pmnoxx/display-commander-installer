@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Epic;
+using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.Models;
 using DisplayCommanderInstaller.Services;
 using DisplayCommanderInstaller.ViewModels;
@@ -60,21 +61,67 @@ public sealed partial class LibraryPage : Page
     private async void Install_Click(object sender, RoutedEventArgs e)
     {
         var steamTab = IsSteamTab;
-        var gameDir = steamTab
-            ? SteamVm.SelectedGame?.CommonInstallPath
-            : EpicVm.SelectedGame?.InstallLocation;
-        if (string.IsNullOrEmpty(gameDir))
+        string? installRoot;
+        string? resolvedExe;
+        if (steamTab)
+        {
+            if (SteamVm.SelectedGame is null)
+                return;
+            if (SteamVm.IsResolvingPrimaryExecutable)
+            {
+                await new ContentDialog
+                {
+                    Title = "Detecting executable",
+                    Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                    CloseButtonText = "OK",
+                    XamlRoot = XamlRoot!,
+                }.ShowAsync();
+                return;
+            }
+
+            installRoot = SteamVm.SelectedGame.CommonInstallPath;
+            resolvedExe = SteamVm.SelectedGameExecutablePath;
+        }
+        else
+        {
+            if (EpicVm.SelectedGame is null)
+                return;
+            if (EpicVm.IsResolvingPrimaryExecutable)
+            {
+                await new ContentDialog
+                {
+                    Title = "Detecting executable",
+                    Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                    CloseButtonText = "OK",
+                    XamlRoot = XamlRoot!,
+                }.ShowAsync();
+                return;
+            }
+
+            installRoot = EpicVm.SelectedGame.InstallLocation;
+            resolvedExe = EpicVm.SelectedGameExecutablePath;
+        }
+
+        if (string.IsNullOrEmpty(installRoot))
             return;
 
-        var bitness = steamTab ? SteamVm.SelectedGameExecutableBitness : EpicVm.SelectedGameExecutableBitness;
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(resolvedExe, installRoot);
+
+        var detectedBitness = steamTab ? SteamVm.SelectedGameExecutableBitness : EpicVm.SelectedGameExecutableBitness;
+        var addonMode = (DisplayCommanderAddonPayloadMode)(steamTab
+            ? SteamVm.DisplayCommanderAddonPayloadModeIndex
+            : EpicVm.DisplayCommanderAddonPayloadModeIndex);
+        var effectiveBitness = steamTab
+            ? SteamVm.EffectiveDisplayCommanderInstallBitness
+            : EpicVm.EffectiveDisplayCommanderInstallBitness;
         var install = AppServices.Install;
 
-        if (bitness == GameExecutableBitness.Unknown)
+        if (detectedBitness == GameExecutableBitness.Unknown && addonMode == DisplayCommanderAddonPayloadMode.Automatic)
         {
             var archDlg = new ContentDialog
             {
                 Title = "Executable architecture unknown",
-                Content = "Could not determine 32-bit vs 64-bit for this game. Install will use the 64-bit download URL from Settings (addon64). Continue?",
+                Content = "Could not determine 32-bit vs 64-bit for this game. Install will use the 64-bit download URL from Settings (addon64), or choose 32-bit / 64-bit under Display Commander download. Continue?",
                 PrimaryButtonText = "Continue",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
@@ -86,7 +133,7 @@ public sealed partial class LibraryPage : Page
 
         var url = DisplayCommanderDownloadUrlResolver.Resolve(
             AppServices.Settings.DisplayCommanderDownloadUrl,
-            bitness);
+            effectiveBitness);
 
         var proxy = AppServices.Settings.DisplayCommanderProxyDllFileName;
         var state = install.GetInstallState(gameDir, proxy, out _);
@@ -139,15 +186,43 @@ public sealed partial class LibraryPage : Page
     private async void Remove_Click(object sender, RoutedEventArgs e)
     {
         var steamTab = IsSteamTab;
-        var gameDir = steamTab
-            ? SteamVm.SelectedGame?.CommonInstallPath
-            : EpicVm.SelectedGame?.InstallLocation;
-        if (string.IsNullOrEmpty(gameDir))
+        string? installRoot;
+        string? resolvedExe;
+        if (steamTab)
+        {
+            installRoot = SteamVm.SelectedGame?.CommonInstallPath;
+            resolvedExe = SteamVm.SelectedGameExecutablePath;
+        }
+        else
+        {
+            installRoot = EpicVm.SelectedGame?.InstallLocation;
+            resolvedExe = EpicVm.SelectedGameExecutablePath;
+        }
+
+        if (string.IsNullOrEmpty(installRoot))
             return;
+
+        var preferredDir = GameInstallLayout.GetPayloadAndProxyDirectory(resolvedExe, installRoot);
 
         try
         {
-            AppServices.Install.RemoveIfOurs(gameDir);
+            InvalidOperationException? last = null;
+            foreach (var dir in GameInstallLayout.PreferThenInstallRoot(preferredDir, installRoot))
+            {
+                try
+                {
+                    AppServices.Install.RemoveIfOurs(dir);
+                    last = null;
+                    break;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    last = ex;
+                }
+            }
+
+            if (last is not null)
+                throw last;
             var status = steamTab ? SteamActionStatus : EpicActionStatus;
             status.Visibility = Visibility.Visible;
             status.Text = "Removed Display Commander proxy DLL and installer marker.";
@@ -324,13 +399,20 @@ public sealed partial class LibraryPage : Page
             return;
         }
 
-        var gameDir = SteamVm.SelectedGame.CommonInstallPath;
+        var workDir = Path.GetDirectoryName(exe);
+        if (string.IsNullOrEmpty(workDir))
+        {
+            SteamActionStatus.Visibility = Visibility.Visible;
+            SteamActionStatus.Text = "Could not determine the executable folder.";
+            return;
+        }
+
         try
         {
             Process.Start(new ProcessStartInfo
             {
                 FileName = exe,
-                WorkingDirectory = gameDir,
+                WorkingDirectory = workDir,
                 UseShellExecute = true,
             });
             AppServices.SteamLastPlayed.RecordPlayed(SteamVm.SelectedGame.AppId);
@@ -357,13 +439,20 @@ public sealed partial class LibraryPage : Page
             return;
         }
 
-        var gameDir = EpicVm.SelectedGame.InstallLocation;
+        var workDir = Path.GetDirectoryName(exe);
+        if (string.IsNullOrEmpty(workDir))
+        {
+            EpicActionStatus.Visibility = Visibility.Visible;
+            EpicActionStatus.Text = "Could not determine the executable folder.";
+            return;
+        }
+
         try
         {
             Process.Start(new ProcessStartInfo
             {
                 FileName = exe,
-                WorkingDirectory = gameDir,
+                WorkingDirectory = workDir,
                 UseShellExecute = true,
             });
             AppServices.EpicLastPlayed.RecordPlayed(EpicVm.SelectedGame.StableKey);
@@ -427,9 +516,24 @@ public sealed partial class LibraryPage : Page
     {
         var game = SteamVm.SelectedGame;
         var url = game?.RenoDxSafeAddonUrl;
-        var gameDir = game?.CommonInstallPath;
-        if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(gameDir))
+        if (game is null || string.IsNullOrEmpty(url))
             return;
+        var root = game.CommonInstallPath;
+        if (string.IsNullOrEmpty(root))
+            return;
+        if (SteamVm.IsResolvingPrimaryExecutable)
+        {
+            await new ContentDialog
+            {
+                Title = "Detecting executable",
+                Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot!,
+            }.ShowAsync();
+            return;
+        }
+
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(SteamVm.SelectedGameExecutablePath, root);
 
         try
         {
@@ -456,9 +560,24 @@ public sealed partial class LibraryPage : Page
     {
         var game = EpicVm.SelectedGame;
         var url = game?.RenoDxSafeAddonUrl;
-        var gameDir = game?.InstallLocation;
-        if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(gameDir))
+        if (game is null || string.IsNullOrEmpty(url))
             return;
+        var root = game.InstallLocation;
+        if (string.IsNullOrEmpty(root))
+            return;
+        if (EpicVm.IsResolvingPrimaryExecutable)
+        {
+            await new ContentDialog
+            {
+                Title = "Detecting executable",
+                Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot!,
+            }.ShowAsync();
+            return;
+        }
+
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(EpicVm.SelectedGameExecutablePath, root);
 
         try
         {

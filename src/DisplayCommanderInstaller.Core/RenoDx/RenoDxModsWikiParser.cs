@@ -2,11 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace DisplayCommanderInstaller.Core.RenoDx;
 
-/// <summary>Parses the RenoDX GitHub wiki <c>Mods.md</c> game table; each row is a wiki listing. Trusted clshortfuse GitHub Pages addon URLs are optional per row.</summary>
+/// <summary>Parses the RenoDX GitHub wiki <c>Mods.md</c> game table; each row is a wiki listing. Trusted in-app download URLs are optional per row (<see cref="RenoDxSafeDownload"/>).</summary>
 public static partial class RenoDxModsWikiParser
 {
     private static readonly Regex MarkdownLinkName = MarkdownLinkNameRegex();
-    private static readonly Regex SafeUrlInMarkdown = SafeUrlInMarkdownRegex();
     private static readonly Regex MarkdownHttpsTarget = MarkdownHttpsTargetRegex();
 
     public static IReadOnlyList<RenoDxWikiGameRow> Parse(string markdown)
@@ -75,7 +74,7 @@ public static partial class RenoDxModsWikiParser
 
     private static string? ExtractFirstSafeUrl(string linksCell)
     {
-        foreach (Match m in SafeUrlInMarkdown.Matches(linksCell))
+        foreach (Match m in MarkdownHttpsTarget.Matches(linksCell))
         {
             var u = m.Groups[1].Value.Trim();
             if (RenoDxSafeDownload.IsAllowedUrl(u))
@@ -85,7 +84,7 @@ public static partial class RenoDxModsWikiParser
         return null;
     }
 
-    /// <summary>Picks a non-clshortfuse HTTPS target from the Links cell for disclosure (addon file preferred).</summary>
+    /// <summary>Picks a non-allowlisted HTTPS target from the Links cell for disclosure (addon file preferred).</summary>
     private static string? ExtractUntrustedReferenceUrl(string linksCell)
     {
         var candidates = new List<string>();
@@ -124,9 +123,6 @@ public static partial class RenoDxModsWikiParser
 
     [GeneratedRegex(@"^\[([^\]]+)\]\([^)]+\)\s*$", RegexOptions.CultureInvariant)]
     private static partial Regex MarkdownLinkNameRegex();
-
-    [GeneratedRegex(@"\]\((https://clshortfuse\.github\.io/renodx[^)]+)\)", RegexOptions.CultureInvariant)]
-    private static partial Regex SafeUrlInMarkdownRegex();
 
     [GeneratedRegex(@"\]\((https://[^)]+)\)", RegexOptions.CultureInvariant)]
     private static partial Regex MarkdownHttpsTargetRegex();

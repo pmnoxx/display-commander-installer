@@ -50,6 +50,19 @@ public sealed class RenoDxModsWikiParserTests
     }
 
     [Fact]
+    public void Parse_extracts_pmnoxx_github_release_addon_as_safe_url()
+    {
+        const string md = """
+            | Name | Maintainer | Links | Status |
+            | Test Game | X | [![Snap](https://img.shields.io/badge/s)](https://github.com/pmnoxx/renodx/releases/download/snapshot/renodx-test.addon64) | :white_check_mark: |
+            """;
+
+        var rows = RenoDxModsWikiParser.Parse(md);
+        Assert.Single(rows);
+        Assert.Equal("https://github.com/pmnoxx/renodx/releases/download/snapshot/renodx-test.addon64", rows[0].SafeAddonUrl);
+    }
+
+    [Fact]
     public void Catalog_matches_steam_style_title_with_trademark_stripped()
     {
         var rows = new[]

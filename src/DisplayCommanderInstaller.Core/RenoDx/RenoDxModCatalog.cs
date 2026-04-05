@@ -1,6 +1,6 @@
 namespace DisplayCommanderInstaller.Core.RenoDx;
 
-/// <summary>In-memory index of RenoDX wiki <c>Mods</c> table rows; optional trusted (clshortfuse) download URL per matched row.</summary>
+/// <summary>In-memory index of RenoDX wiki <c>Mods</c> table rows; optional allowlisted download URL per matched row.</summary>
 public sealed class RenoDxModCatalog
 {
     public static RenoDxModCatalog Empty { get; } = new([]);
@@ -14,7 +14,7 @@ public sealed class RenoDxModCatalog
 
     public int Count => _rows.Count;
 
-    /// <summary><c>true</c> if the library title matches a wiki row. Trusted URL is clshortfuse GitHub Pages addons only; untrusted is a wiki link for manual use.</summary>
+    /// <summary><c>true</c> if the library title matches a wiki row. Trusted URL uses <see cref="RenoDxSafeDownload"/>; untrusted is a wiki link for manual use.</summary>
     public bool TryGetWikiListing(
         string libraryGameTitle,
         out string? trustedAddonDownloadUrl,
@@ -30,7 +30,7 @@ public sealed class RenoDxModCatalog
         return true;
     }
 
-    /// <summary>Trusted in-app download URL only; <c>null</c> if not listed or listing has no clshortfuse addon link.</summary>
+    /// <summary>Allowlisted in-app download URL only; <c>null</c> if not listed or listing has no allowlisted addon link.</summary>
     public string? TryGetSafeAddonUrl(string libraryGameTitle) =>
         TryGetWikiListing(libraryGameTitle, out var u, out _) ? u : null;
 

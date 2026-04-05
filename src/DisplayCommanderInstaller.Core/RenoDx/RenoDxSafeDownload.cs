@@ -1,17 +1,34 @@
 namespace DisplayCommanderInstaller.Core.RenoDx;
 
-/// <summary>Only addon URLs hosted under this path are treated as safe to download in-app.</summary>
+/// <summary>In-app RenoDX addon downloads are restricted to known-good URL prefixes and <c>.addon32</c>/<c>.addon64</c> files.</summary>
 public static class RenoDxSafeDownload
 {
-    public const string UrlPrefix = "https://clshortfuse.github.io/renodx";
+    public const string ClshortfuseGithubPagesPrefix = "https://clshortfuse.github.io/renodx";
+
+    /// <summary>Kept for compatibility; same as <see cref="ClshortfuseGithubPagesPrefix"/>.</summary>
+    public const string UrlPrefix = ClshortfuseGithubPagesPrefix;
+
+    public const string PmnoxxGithubRepoPrefix = "https://github.com/pmnoxx/renodx/";
+
+    public const string PmnoxxRawGithubPrefix = "https://raw.githubusercontent.com/pmnoxx/renodx/";
 
     public static bool IsAllowedUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
             return false;
-        return url.StartsWith(UrlPrefix + "/", StringComparison.OrdinalIgnoreCase) &&
-               (url.EndsWith(".addon64", StringComparison.OrdinalIgnoreCase) ||
-                url.EndsWith(".addon32", StringComparison.OrdinalIgnoreCase));
+        url = url.Trim();
+        if (!url.EndsWith(".addon64", StringComparison.OrdinalIgnoreCase) &&
+            !url.EndsWith(".addon32", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (url.StartsWith(ClshortfuseGithubPagesPrefix + "/", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (url.StartsWith(PmnoxxGithubRepoPrefix, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (url.StartsWith(PmnoxxRawGithubPrefix, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
     }
 
     public static bool TryGetFileName(string url, out string fileName)

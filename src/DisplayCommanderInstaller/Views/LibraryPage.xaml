@@ -125,6 +125,23 @@
                                 Style="{ThemeResource CaptionTextBlockStyle}"
                                 Text="{x:Bind SteamVm.SelectedGameArchitectureDisplay, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
+                            <StackPanel
+                                Spacing="4"
+                                Visibility="{x:Bind SteamVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    Opacity="0.88"
+                                    Style="{ThemeResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind SteamVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
+                                    TextWrapping="WrapWholeWords" />
+                                <RadioButtons
+                                    Header="Display Commander download"
+                                    MaxColumns="3"
+                                    SelectedIndex="{x:Bind SteamVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
+                                    <x:String>Auto (exe)</x:String>
+                                    <x:String>32-bit</x:String>
+                                    <x:String>64-bit</x:String>
+                                </RadioButtons>
+                            </StackPanel>
                             <TextBlock
                                 Opacity="0.88"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
@@ -141,7 +158,7 @@
                                 <TextBlock
                                     Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
                                     Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="RenoDX: untrusted source — in-app download is only offered for addons on the official clshortfuse host. Use links from the wiki at your own risk."
+                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse GitHub Pages and github.com/pmnoxx/renodx). Use other wiki links at your own risk."
                                     TextWrapping="WrapWholeWords" />
                                 <StackPanel
                                     Spacing="2"
@@ -167,7 +184,10 @@
                                     Content="Open RenoDX Mods wiki" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Click="Install_Click" Content="Install Display Commander" />
+                                <Button
+                                    Click="Install_Click"
+                                    Content="Install Display Commander"
+                                    IsEnabled="{x:Bind SteamVm.CanInstallDisplayCommander, Mode=OneWay}" />
                                 <Button Click="Remove_Click" Content="Remove" />
                                 <Button Click="OpenFolder_Click" Content="Open folder" />
                                 <Button
@@ -311,6 +331,23 @@
                                 Style="{ThemeResource CaptionTextBlockStyle}"
                                 Text="{x:Bind EpicVm.SelectedGameArchitectureDisplay, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
+                            <StackPanel
+                                Spacing="4"
+                                Visibility="{x:Bind EpicVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock
+                                    Opacity="0.88"
+                                    Style="{ThemeResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind EpicVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
+                                    TextWrapping="WrapWholeWords" />
+                                <RadioButtons
+                                    Header="Display Commander download"
+                                    MaxColumns="3"
+                                    SelectedIndex="{x:Bind EpicVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
+                                    <x:String>Auto (exe)</x:String>
+                                    <x:String>32-bit</x:String>
+                                    <x:String>64-bit</x:String>
+                                </RadioButtons>
+                            </StackPanel>
                             <TextBlock
                                 Opacity="0.88"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
@@ -327,7 +364,7 @@
                                 <TextBlock
                                     Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
                                     Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="RenoDX: untrusted source — in-app download is only offered for addons on the official clshortfuse host. Use links from the wiki at your own risk."
+                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse GitHub Pages and github.com/pmnoxx/renodx). Use other wiki links at your own risk."
                                     TextWrapping="WrapWholeWords" />
                                 <StackPanel
                                     Spacing="2"
@@ -353,7 +390,10 @@
                                     Content="Open RenoDX Mods wiki" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Click="Install_Click" Content="Install Display Commander" />
+                                <Button
+                                    Click="Install_Click"
+                                    Content="Install Display Commander"
+                                    IsEnabled="{x:Bind EpicVm.CanInstallDisplayCommander, Mode=OneWay}" />
                                 <Button Click="Remove_Click" Content="Remove" />
                                 <Button Click="OpenFolder_Click" Content="Open folder" />
                                 <Button

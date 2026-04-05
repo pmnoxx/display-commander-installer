@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Binary;
 using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
@@ -18,6 +19,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     private readonly DispatcherQueue _dispatcher;
     private CancellationTokenSource? _architectureDetectCts;
     private DispatcherQueueTimer? _gameRunPollTimer;
+    private bool _suppressAddonBitnessPersist;
+    private int _displayCommanderAddonPayloadModeIndex;
 
     public EpicLibraryPageViewModel(DispatcherQueue dispatcher)
     {
@@ -57,7 +60,64 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     private string selectedGameProcessStatusText = "Game process: —";
 
     [ObservableProperty]
+    private bool isResolvingPrimaryExecutable;
+
+    [ObservableProperty]
     private LibraryGameListFilter listFilter = LibraryGameListFilter.All;
+
+    public bool CanInstallDisplayCommander => SelectedGame is not null && !IsResolvingPrimaryExecutable;
+
+    public int DisplayCommanderAddonPayloadModeIndex
+    {
+        get => _displayCommanderAddonPayloadModeIndex;
+        set
+        {
+            if (value < 0 || value > 2)
+                return;
+            if (_displayCommanderAddonPayloadModeIndex == value)
+                return;
+            _displayCommanderAddonPayloadModeIndex = value;
+            OnPropertyChanged();
+            if (!_suppressAddonBitnessPersist && SelectedGame is not null)
+            {
+                AppServices.DisplayCommanderAddonBitnessOverrides.SetEpicMode(
+                    SelectedGame.StableKey,
+                    (DisplayCommanderAddonPayloadMode)value);
+            }
+
+            OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
+        }
+    }
+
+    public bool ShowDisplayCommanderAddonModeUi => SelectedGame is not null;
+
+    public string DisplayCommanderAddonChoiceSummary
+    {
+        get
+        {
+            if (SelectedGame is null)
+                return "";
+            var mode = (DisplayCommanderAddonPayloadMode)DisplayCommanderAddonPayloadModeIndex;
+            if (mode == DisplayCommanderAddonPayloadMode.Force32Bit)
+                return "Display Commander package: 32-bit (addon32) — manual override.";
+            if (mode == DisplayCommanderAddonPayloadMode.Force64Bit)
+                return "Display Commander package: 64-bit (addon64) — manual override.";
+            return SelectedGameExecutableBitness switch
+            {
+                GameExecutableBitness.Bit32 => "Display Commander package: 32-bit (addon32) — from detected .exe.",
+                GameExecutableBitness.Bit64 => "Display Commander package: 64-bit (addon64) — from detected .exe.",
+                GameExecutableBitness.Arm64 => "Display Commander package: 64-bit (addon64) — ARM64 .exe.",
+                _ => "Display Commander package: 64-bit (addon64) — architecture unknown; Install will ask to confirm unless you pick an override.",
+            };
+        }
+    }
+
+    public GameExecutableBitness EffectiveDisplayCommanderInstallBitness =>
+        SelectedGame is null
+            ? GameExecutableBitness.Unknown
+            : DisplayCommanderInstallBitness.GetEffectiveBitness(
+                SelectedGameExecutableBitness,
+                (DisplayCommanderAddonPayloadMode)DisplayCommanderAddonPayloadModeIndex);
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
@@ -84,6 +144,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
 
     partial void OnSelectedGameChanged(EpicGameEntry? value)
     {
+        RestartArchitectureDetection(value);
         OnPropertyChanged(nameof(SelectedGameTitle));
         OnPropertyChanged(nameof(SelectedGamePathDisplay));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
@@ -93,15 +154,60 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGameIsFavorite));
         OnPropertyChanged(nameof(FavoriteToggleButtonLabel));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
+        OnPropertyChanged(nameof(CanInstallDisplayCommander));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedSourceWarning));
         OnPropertyChanged(nameof(RenoDxUntrustedReferenceUrl));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedReferenceUrl));
-        RestartArchitectureDetection(value);
+        LoadEpicDisplayCommanderAddonPayloadModeFromStore();
+        OnPropertyChanged(nameof(ShowDisplayCommanderAddonModeUi));
+        OnPropertyChanged(nameof(DisplayCommanderAddonPayloadModeIndex));
+        OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
+        OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
     }
 
-    public bool CanInstallRenoDxAddon => !string.IsNullOrEmpty(SelectedGame?.RenoDxSafeAddonUrl);
+    partial void OnSelectedGameExecutablePathChanged(string? value)
+    {
+        OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
+        OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
+        OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
+    }
 
-    /// <summary>Wiki-listed RenoDX game without a clshortfuse addon URL — user must use another source.</summary>
+    partial void OnSelectedGameExecutableBitnessChanged(GameExecutableBitness value)
+    {
+        OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
+        OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
+    }
+
+    partial void OnIsResolvingPrimaryExecutableChanged(bool value)
+    {
+        OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
+        OnPropertyChanged(nameof(CanInstallDisplayCommander));
+        OnPropertyChanged(nameof(CanInstallRenoDxAddon));
+        OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
+    }
+
+    private void LoadEpicDisplayCommanderAddonPayloadModeFromStore()
+    {
+        _suppressAddonBitnessPersist = true;
+        try
+        {
+            if (SelectedGame is null)
+                _displayCommanderAddonPayloadModeIndex = 0;
+            else
+                _displayCommanderAddonPayloadModeIndex = (int)AppServices.DisplayCommanderAddonBitnessOverrides.TryGetEpicMode(SelectedGame.StableKey);
+        }
+        finally
+        {
+            _suppressAddonBitnessPersist = false;
+        }
+    }
+
+    public bool CanInstallRenoDxAddon =>
+        !string.IsNullOrEmpty(SelectedGame?.RenoDxSafeAddonUrl) && !IsResolvingPrimaryExecutable;
+
+    /// <summary>Wiki-listed RenoDX game without an allowlisted in-app addon URL — user must use another source.</summary>
     public bool ShowRenoDxUntrustedSourceWarning =>
         SelectedGame is { HasRenoDxWikiListing: true } &&
         string.IsNullOrEmpty(SelectedGame.RenoDxSafeAddonUrl);
@@ -146,9 +252,10 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         {
             if (SelectedGame is null)
                 return "";
-            var dir = SelectedGame.InstallLocation;
-            if (string.IsNullOrWhiteSpace(dir))
+            var root = SelectedGame.InstallLocation;
+            if (string.IsNullOrWhiteSpace(root))
                 return "";
+            var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
             var names = GameFolderAddonPayloadFiles.ListFileNamesInDirectory(dir);
             if (names.Count == 0)
                 return "No .addon32 or .addon64 files in this folder.";
@@ -162,10 +269,11 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         {
             if (SelectedGame is null)
                 return "Select a game to see proxy DLL status.";
-            var dir = SelectedGame.InstallLocation;
-            if (string.IsNullOrWhiteSpace(dir))
+            var root = SelectedGame.InstallLocation;
+            if (string.IsNullOrWhiteSpace(root))
                 return "No install folder is set for this game.";
 
+            var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
             var proxy = AppServices.Settings.DisplayCommanderProxyDllFileName;
             var state = AppServices.Install.GetInstallState(dir, proxy, out _);
             return state switch
@@ -286,6 +394,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
 
         if (value is null)
         {
+            IsResolvingPrimaryExecutable = false;
             SelectedGameExecutablePath = null;
             SelectedGameExecutableBitness = GameExecutableBitness.Unknown;
             SelectedGameArchitectureDisplay = "Select a game to detect executable architecture.";
@@ -295,6 +404,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             return;
         }
 
+        IsResolvingPrimaryExecutable = true;
         SelectedGameArchitectureDisplay = "Detecting executable…";
         SelectedGameExecutablePath = null;
         SelectedGameExecutableBitness = GameExecutableBitness.Unknown;
@@ -340,6 +450,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             if (!ReferenceEquals(SelectedGame, game))
                 return;
 
+            IsResolvingPrimaryExecutable = false;
             SelectedGameExecutablePath = exePath;
             SelectedGameExecutableBitness = bitness;
             SelectedGameArchitectureDisplay = displayLine;

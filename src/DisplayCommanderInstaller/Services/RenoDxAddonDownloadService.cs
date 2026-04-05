@@ -4,7 +4,7 @@ using DisplayCommanderInstaller.Core.RenoDx;
 
 namespace DisplayCommanderInstaller.Services;
 
-/// <summary>Downloads a RenoDX <c>.addon32</c>/<c>.addon64</c> from the allowed clshortfuse GitHub Pages host into a game folder.</summary>
+/// <summary>Downloads a RenoDX <c>.addon32</c>/<c>.addon64</c> from an allowlisted URL (<see cref="RenoDxSafeDownload"/>) into a game folder.</summary>
 public sealed class RenoDxAddonDownloadService
 {
     private static readonly HttpClient Http = CreateHttpClient();

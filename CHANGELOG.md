@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Display Commander download** choice per game: **Auto (exe)**, **32-bit**, or **64-bit** (radio buttons under the architecture line on Steam and Epic). Overrides wrong detection when the resolved `.exe` is a 32-bit launcher but the real game is 64-bit (or the reverse). Choices persist under `%LocalAppData%\Programs\Display_Commander\display-commander-addon-bitness-overrides.json` (Steam App ID and Epic stable key).
 - **Epic Games** tab on the library page: scans `ProgramData\Epic\EpicGamesLauncher\Data\Manifests\*.item` for installed titles (same detail panel ideas as Steam: path, proxy status, architecture, **Install / Remove**, **Open folder**, **Search Epic Store**, **Start game** / **Start via exe**, **Stop** / **Kill**, process line). **Favorites** and **last played** persist under `%LocalAppData%\DisplayCommanderInstaller\` (`epic-favorites.json`, `epic-last-played.json`).
-- **RenoDX (Mods wiki)** integration: loads [RenoDX Mods](https://github.com/clshortfuse/renodx/wiki/Mods) raw markdown on app start and before library refresh; matches installed titles to wiki rows. **RenoDX** chip on any wiki-listed game. **Install / update RenoDX addon** only for addons hosted under `https://clshortfuse.github.io/renodx/` (`.addon32` / `.addon64`). For other listings, shows an **untrusted source** warning with the parsed wiki reference URL (open in browser) plus a link to the Mods wiki.
+- **RenoDX (Mods wiki)** integration: loads [RenoDX Mods](https://github.com/clshortfuse/renodx/wiki/Mods) raw markdown on app start and before library refresh; matches installed titles to wiki rows. **RenoDX** chip on any wiki-listed game. **Install / update RenoDX addon** only for allowlisted `.addon32` / `.addon64` URLs: `https://clshortfuse.github.io/renodx/…`, `https://github.com/pmnoxx/renodx/…`, and `https://raw.githubusercontent.com/pmnoxx/renodx/…`. For other listings, shows an **untrusted source** warning with the parsed wiki reference URL (open in browser) plus a link to the Mods wiki.
 - Library **Show** scope: **RadioButtons** for **All** / **Favorites** / **RenoDX** (replaces the favorites-only checkbox); **RenoDX** filter includes every wiki-matched title, not only trusted downloads.
 - Selected game panel lists **`.addon32` / `.addon64` files** present in the install folder (non-recursive).
 - **Crash diagnostics**: unhandled UI exceptions and unobserved task exceptions append to `%LocalAppData%\DisplayCommanderInstaller\logs\app.log`.
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Display Commander proxy DLL** install/remove/status, **RenoDX addon** downloads, and **`.addon32` / `.addon64` listing** use the folder that contains the **resolved game `.exe`** when one is found (e.g. `…\Hades II\Ship`), falling back to the Steam `common\{installdir}` or Epic install root if no exe is resolved. **Remove** tries the exe folder first, then the install root (covers older installs that only had the proxy at the manifest root). **Install** / RenoDX actions stay disabled while executable detection is in progress.
+- **Start via exe** uses the **executable’s directory** as the process working directory (not only the Steam/Epic install root).
 - Library page uses a **Steam / Epic** tab view; list rows show **name and install path** only (Steam App ID is not shown on each row; search by App ID still works).
 - **Primary `.exe` resolver** accepts an install root and display name so the same heuristics serve **Steam** and **Epic** installs.
 
