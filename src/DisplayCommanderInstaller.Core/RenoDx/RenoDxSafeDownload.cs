@@ -5,12 +5,18 @@ public static class RenoDxSafeDownload
 {
     public const string ClshortfuseGithubPagesPrefix = "https://clshortfuse.github.io/renodx";
 
+    public const string Marat569GithubPagesPrefix = "https://marat569.github.io/renodx";
+
     /// <summary>Kept for compatibility; same as <see cref="ClshortfuseGithubPagesPrefix"/>.</summary>
     public const string UrlPrefix = ClshortfuseGithubPagesPrefix;
 
     public const string PmnoxxGithubRepoPrefix = "https://github.com/pmnoxx/renodx/";
 
     public const string PmnoxxRawGithubPrefix = "https://raw.githubusercontent.com/pmnoxx/renodx/";
+
+    public const string MqhajiGithubRepoPrefix = "https://github.com/mqhaji/renodx/";
+
+    public const string MqhajiRawGithubPrefix = "https://raw.githubusercontent.com/mqhaji/renodx/";
 
     public static bool IsAllowedUrl(string url)
     {
@@ -23,9 +29,15 @@ public static class RenoDxSafeDownload
 
         if (url.StartsWith(ClshortfuseGithubPagesPrefix + "/", StringComparison.OrdinalIgnoreCase))
             return true;
+        if (url.StartsWith(Marat569GithubPagesPrefix + "/", StringComparison.OrdinalIgnoreCase))
+            return true;
         if (url.StartsWith(PmnoxxGithubRepoPrefix, StringComparison.OrdinalIgnoreCase))
             return true;
         if (url.StartsWith(PmnoxxRawGithubPrefix, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (url.StartsWith(MqhajiGithubRepoPrefix, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (url.StartsWith(MqhajiRawGithubPrefix, StringComparison.OrdinalIgnoreCase))
             return true;
 
         return false;

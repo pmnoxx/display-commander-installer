@@ -7,6 +7,7 @@ using DisplayCommanderInstaller.Core.Binary;
 using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.Models;
+using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Core.Steam;
 using DisplayCommanderInstaller.Services;
 using Microsoft.UI.Dispatching;
@@ -154,6 +155,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGameIsFavorite));
         OnPropertyChanged(nameof(FavoriteToggleButtonLabel));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
+        OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(CanInstallDisplayCommander));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedSourceWarning));
         OnPropertyChanged(nameof(RenoDxUntrustedReferenceUrl));
@@ -169,6 +171,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(WinMmInstallStatusText));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
+        OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
         OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
     }
@@ -185,6 +188,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanInstallDisplayCommander));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
+        OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
     }
 
@@ -207,6 +211,22 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     public bool CanInstallRenoDxAddon =>
         !string.IsNullOrEmpty(SelectedGame?.RenoDxSafeAddonUrl) && !IsResolvingPrimaryExecutable;
 
+    public bool CanUninstallRenoDxAddon
+    {
+        get
+        {
+            if (SelectedGame is not { RenoDxSafeAddonUrl: { } url } || IsResolvingPrimaryExecutable)
+                return false;
+            if (!RenoDxSafeDownload.TryGetFileName(url, out var fileName))
+                return false;
+            var root = SelectedGame.InstallLocation;
+            if (string.IsNullOrWhiteSpace(root))
+                return false;
+            var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
+            return File.Exists(Path.Combine(dir, fileName));
+        }
+    }
+
     /// <summary>Wiki-listed RenoDX game without an allowlisted in-app addon URL — user must use another source.</summary>
     public bool ShowRenoDxUntrustedSourceWarning =>
         SelectedGame is { HasRenoDxWikiListing: true } &&
@@ -217,7 +237,11 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     public bool ShowRenoDxUntrustedReferenceUrl =>
         ShowRenoDxUntrustedSourceWarning && !string.IsNullOrEmpty(RenoDxUntrustedReferenceUrl);
 
-    public void RefreshAddonFilesDisplay() => OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
+    public void RefreshAddonFilesDisplay()
+    {
+        OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
+        OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
+    }
 
     public bool CanOpenEpicLauncher =>
         SelectedGame is not null && EpicGameLauncherLinks.TryGetLaunchUri(SelectedGame) is not null;

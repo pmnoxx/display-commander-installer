@@ -7,8 +7,11 @@ public sealed class RenoDxSafeDownloadTests
 {
     [Theory]
     [InlineData("https://clshortfuse.github.io/renodx/renodx-x.addon64")]
+    [InlineData("https://marat569.github.io/renodx/renodx-x.addon64")]
     [InlineData("https://github.com/pmnoxx/renodx/releases/download/snapshot/renodx-x.addon64")]
     [InlineData("https://raw.githubusercontent.com/pmnoxx/renodx/main/foo.addon32")]
+    [InlineData("https://github.com/mqhaji/renodx/releases/download/snapshot/renodx-x.addon64")]
+    [InlineData("https://raw.githubusercontent.com/mqhaji/renodx/main/foo.addon32")]
     public void IsAllowedUrl_accepts_trusted_prefixes_with_addon_extension(string url) =>
         Assert.True(RenoDxSafeDownload.IsAllowedUrl(url));
 
@@ -16,7 +19,9 @@ public sealed class RenoDxSafeDownloadTests
     [InlineData("https://github.com/other/renodx/releases/download/x/y.addon64")]
     [InlineData("https://github.com/pmnoxx/other-repo/x.addon64")]
     [InlineData("https://github.com/pmnoxx/renodx")]
+    [InlineData("https://github.com/mqhaji/renodx")]
     [InlineData("https://oopydoopy.github.io/renodx/x.addon64")]
+    [InlineData("https://evil.github.io/renodx/x.addon64")]
     public void IsAllowedUrl_rejects_non_allowlisted_urls(string url) =>
         Assert.False(RenoDxSafeDownload.IsAllowedUrl(url));
 }

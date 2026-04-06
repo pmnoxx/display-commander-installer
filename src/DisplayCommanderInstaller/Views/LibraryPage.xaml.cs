@@ -3,6 +3,7 @@ using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.Models;
+using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Services;
 using DisplayCommanderInstaller.ViewModels;
 using Microsoft.UI.Dispatching;
@@ -333,6 +334,11 @@ public sealed partial class LibraryPage : Page
 
     private void StartGame_Click(object sender, RoutedEventArgs e)
     {
+        StartSelectedSteamGame();
+    }
+
+    private void StartSelectedSteamGame()
+    {
         if (SteamVm.SelectedGame is null)
             return;
 
@@ -356,6 +362,11 @@ public sealed partial class LibraryPage : Page
     }
 
     private void StartEpicGame_Click(object sender, RoutedEventArgs e)
+    {
+        StartSelectedEpicGame();
+    }
+
+    private void StartSelectedEpicGame()
     {
         if (EpicVm.SelectedGame is null)
             return;
@@ -384,6 +395,16 @@ public sealed partial class LibraryPage : Page
             EpicActionStatus.Visibility = Visibility.Visible;
             EpicActionStatus.Text = "Could not start game. Is the Epic Games Launcher installed?";
         }
+    }
+
+    private void SteamGameList_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    {
+        StartSelectedSteamGame();
+    }
+
+    private void EpicGameList_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    {
+        StartSelectedEpicGame();
     }
 
     private void StartViaExe_Click(object sender, RoutedEventArgs e)
@@ -598,5 +619,77 @@ public sealed partial class LibraryPage : Page
         {
             EpicVm.RefreshAddonFilesDisplay();
         }
+    }
+
+    private async void UninstallRenoDxAddon_Click(object sender, RoutedEventArgs e)
+    {
+        var game = SteamVm.SelectedGame;
+        var url = game?.RenoDxSafeAddonUrl;
+        if (game is null || string.IsNullOrEmpty(url))
+            return;
+        var root = game.CommonInstallPath;
+        if (string.IsNullOrEmpty(root))
+            return;
+        if (SteamVm.IsResolvingPrimaryExecutable)
+        {
+            await new ContentDialog
+            {
+                Title = "Detecting executable",
+                Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot!,
+            }.ShowAsync();
+            return;
+        }
+
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(SteamVm.SelectedGameExecutablePath, root);
+        var outcome = RenoDxInstalledAddonRemoval.TryRemove(gameDir, url, out var msg);
+        SteamActionStatus.Visibility = Visibility.Visible;
+        SteamActionStatus.Text = outcome switch
+        {
+            RenoDxAddonRemoveOutcome.Removed => msg ?? "Removed RenoDX addon.",
+            RenoDxAddonRemoveOutcome.NotFound => msg ?? "RenoDX addon file not found.",
+            RenoDxAddonRemoveOutcome.InvalidUrl => msg ?? "Invalid RenoDX addon URL.",
+            RenoDxAddonRemoveOutcome.InvalidGameDirectory => msg ?? "Invalid game folder.",
+            RenoDxAddonRemoveOutcome.Failed => "Could not remove RenoDX addon: " + (msg ?? ""),
+            _ => msg ?? "",
+        };
+        SteamVm.RefreshAddonFilesDisplay();
+    }
+
+    private async void UninstallEpicRenoDxAddon_Click(object sender, RoutedEventArgs e)
+    {
+        var game = EpicVm.SelectedGame;
+        var url = game?.RenoDxSafeAddonUrl;
+        if (game is null || string.IsNullOrEmpty(url))
+            return;
+        var root = game.InstallLocation;
+        if (string.IsNullOrEmpty(root))
+            return;
+        if (EpicVm.IsResolvingPrimaryExecutable)
+        {
+            await new ContentDialog
+            {
+                Title = "Detecting executable",
+                Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot!,
+            }.ShowAsync();
+            return;
+        }
+
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(EpicVm.SelectedGameExecutablePath, root);
+        var outcome = RenoDxInstalledAddonRemoval.TryRemove(gameDir, url, out var msg);
+        EpicActionStatus.Visibility = Visibility.Visible;
+        EpicActionStatus.Text = outcome switch
+        {
+            RenoDxAddonRemoveOutcome.Removed => msg ?? "Removed RenoDX addon.",
+            RenoDxAddonRemoveOutcome.NotFound => msg ?? "RenoDX addon file not found.",
+            RenoDxAddonRemoveOutcome.InvalidUrl => msg ?? "Invalid RenoDX addon URL.",
+            RenoDxAddonRemoveOutcome.InvalidGameDirectory => msg ?? "Invalid game folder.",
+            RenoDxAddonRemoveOutcome.Failed => "Could not remove RenoDX addon: " + (msg ?? ""),
+            _ => msg ?? "",
+        };
+        EpicVm.RefreshAddonFilesDisplay();
     }
 }

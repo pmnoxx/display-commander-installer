@@ -69,6 +69,7 @@
                         <ListView
                             Grid.Row="2"
                             Grid.Column="0"
+                            DoubleTapped="SteamGameList_DoubleTapped"
                             IsItemClickEnabled="False"
                             ItemsSource="{x:Bind SteamVm.FilteredGames, Mode=OneWay}"
                             SelectedItem="{x:Bind SteamVm.SelectedGame, Mode=TwoWay}"
@@ -158,7 +159,7 @@
                                 <TextBlock
                                     Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
                                     Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse GitHub Pages and github.com/pmnoxx/renodx). Use other wiki links at your own risk."
+                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
                                     TextWrapping="WrapWholeWords" />
                                 <StackPanel
                                     Spacing="2"
@@ -215,6 +216,10 @@
                                     Click="InstallRenoDxAddon_Click"
                                     Content="Install / update RenoDX addon"
                                     IsEnabled="{x:Bind SteamVm.CanInstallRenoDxAddon, Mode=OneWay}" />
+                                <Button
+                                    Click="UninstallRenoDxAddon_Click"
+                                    Content="Remove RenoDX addon"
+                                    IsEnabled="{x:Bind SteamVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
                             </StackPanel>
                             <TextBlock
                                 x:Name="SteamActionStatus"
@@ -275,6 +280,7 @@
                         <ListView
                             Grid.Row="2"
                             Grid.Column="0"
+                            DoubleTapped="EpicGameList_DoubleTapped"
                             IsItemClickEnabled="False"
                             ItemsSource="{x:Bind EpicVm.FilteredGames, Mode=OneWay}"
                             SelectedItem="{x:Bind EpicVm.SelectedGame, Mode=TwoWay}"
@@ -364,7 +370,7 @@
                                 <TextBlock
                                     Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
                                     Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse GitHub Pages and github.com/pmnoxx/renodx). Use other wiki links at your own risk."
+                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
                                     TextWrapping="WrapWholeWords" />
                                 <StackPanel
                                     Spacing="2"
@@ -424,6 +430,10 @@
                                     Click="InstallEpicRenoDxAddon_Click"
                                     Content="Install / update RenoDX addon"
                                     IsEnabled="{x:Bind EpicVm.CanInstallRenoDxAddon, Mode=OneWay}" />
+                                <Button
+                                    Click="UninstallEpicRenoDxAddon_Click"
+                                    Content="Remove RenoDX addon"
+                                    IsEnabled="{x:Bind EpicVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
                             </StackPanel>
                             <TextBlock
                                 x:Name="EpicActionStatus"
