@@ -20,7 +20,6 @@ namespace DisplayCommanderInstaller.ViewModels;
 public partial class UnifiedLibraryPageViewModel : ObservableObject
 {
     private const string DebugLogPath = "debug-f4aa3e.log";
-    private static readonly IReadOnlyList<string> ProxyDllComboItemsStatic = BuildProxyDllComboItems();
     private string _lastApplySource = "unknown";
     private readonly DispatcherQueue _dispatcher;
     private int _displayCommanderProxyDllComboSelectedIndex;
@@ -35,7 +34,7 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
 
     public ObservableCollection<UnifiedLibraryListItem> FilteredGames { get; } = [];
 
-    public IReadOnlyList<string> DisplayCommanderProxyDllComboItems => ProxyDllComboItemsStatic;
+    public IReadOnlyList<string> DisplayCommanderProxyDllComboItems => BuildDisplayCommanderProxyDllComboItems();
 
     public int DisplayCommanderProxyDllComboSelectedIndex
     {
@@ -51,11 +50,19 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         }
     }
 
-    private static IReadOnlyList<string> BuildProxyDllComboItems()
+    private static IReadOnlyList<string> BuildDisplayCommanderProxyDllComboItems()
     {
-        var list = new List<string> { "Default (from Settings)" };
+        var def = AppServices.Settings.DisplayCommanderProxyDllFileName;
+        var list = new List<string> { $"Default({def})" };
         list.AddRange(DisplayCommanderManagedProxyDlls.AllFileNames);
         return list;
+    }
+
+    /// <summary>Refreshes the proxy combo first row (<c>Default(xxx.dll)</c> from Settings) and re-syncs selection after <see cref="DisplayCommanderProxyDllComboItems"/> is rebound.</summary>
+    public void RefreshDisplayCommanderProxyDllComboShell()
+    {
+        OnPropertyChanged(nameof(DisplayCommanderProxyDllComboItems));
+        SyncDisplayCommanderProxyDllComboToSelection();
     }
 
     [ObservableProperty]

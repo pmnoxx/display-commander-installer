@@ -44,6 +44,7 @@ public sealed partial class LibraryPage : Page
         base.OnNavigatedTo(e);
         Vm.ReloadCustomGamesFromStore();
         Vm.RefreshWinMmInstallStatus();
+        Vm.RefreshDisplayCommanderProxyDllComboShell();
     }
 
     private IProgress<string> CreateUiProgress()
