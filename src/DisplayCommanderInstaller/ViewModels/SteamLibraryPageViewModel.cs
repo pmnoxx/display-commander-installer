@@ -638,7 +638,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         if (_gameRunPollTimer is not null)
             return;
         _gameRunPollTimer = _dispatcher.CreateTimer();
-        _gameRunPollTimer.Interval = TimeSpan.FromSeconds(1.5);
+        _gameRunPollTimer.Interval = GameExecutableProcessHelper.GameProcessMonitorPollInterval;
         _gameRunPollTimer.Tick += (_, _) => PollGameRunningState();
     }
 
@@ -677,13 +677,15 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         _ = Task.Run(() =>
         {
             bool running;
+            string line;
             try
             {
-                running = GameExecutableProcessHelper.IsRunning(pathCopy);
+                (running, line) = GameExecutableProcessHelper.GetExecutableProcessMonitorStatus(pathCopy);
             }
             catch
             {
                 running = false;
+                line = "Game process: not running";
             }
 
             _dispatcher.TryEnqueue(() =>
@@ -691,7 +693,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
                 if (!string.Equals(SelectedGameExecutablePath, pathCopy, StringComparison.OrdinalIgnoreCase))
                     return;
                 IsSelectedGameExecutableRunning = running;
-                SelectedGameProcessStatusText = running ? "Game process: running" : "Game process: not running";
+                SelectedGameProcessStatusText = line;
             });
         });
     }

@@ -4,6 +4,7 @@ using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.Models;
+using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Services;
 using DisplayCommanderInstaller.ViewModels;
 using Microsoft.UI.Dispatching;
@@ -19,12 +20,13 @@ public sealed partial class LibraryPage : Page
 {
     private const string DebugLogPath = "debug-cc013d.log";
     private bool _isReShadeInstallInProgress;
+    private bool _isRenoDxAddonInstallInProgress;
     public UnifiedLibraryPageViewModel Vm { get; }
 
     public LibraryPage()
     {
         InitializeComponent();
-        var dq = DispatcherQueue.GetForCurrentThread()!;
+        var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()!;
         Vm = new UnifiedLibraryPageViewModel(dq);
         Loaded += async (_, _) =>
         {
@@ -48,7 +50,7 @@ public sealed partial class LibraryPage : Page
     {
         return new Progress<string>(m =>
         {
-            DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
             {
                 ActionStatus.Text = m;
                 ActionStatus.Visibility = Visibility.Visible;
@@ -285,6 +287,127 @@ public sealed partial class LibraryPage : Page
     private async void InstallOrUpdateGlobalReShade_Click(object sender, RoutedEventArgs e)
     {
         await InstallOrUpdateReShadeAsync(GetGlobalReShadeFolder());
+    }
+
+    private async void InstallOrUpdateRenoDxAddon_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Vm.HasSelectedGame)
+            return;
+        if (Vm.IsResolvingPrimaryExecutable)
+        {
+            await new ContentDialog
+            {
+                Title = "Detecting executable",
+                Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot!,
+            }.ShowAsync();
+            return;
+        }
+
+        var url = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.RenoDxSafeAddonUrl
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.RenoDxSafeAddonUrl : null;
+        if (string.IsNullOrEmpty(url))
+            return;
+
+        var installRoot = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.CommonInstallPath
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.InstallLocation : null;
+        var resolvedExe = Vm.SelectedGameExecutablePath;
+        if (string.IsNullOrEmpty(installRoot))
+            return;
+
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(resolvedExe, installRoot);
+
+        if (_isRenoDxAddonInstallInProgress)
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "RenoDX addon install is already running.";
+            return;
+        }
+
+        try
+        {
+            _isRenoDxAddonInstallInProgress = true;
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Working…";
+            await AppServices.RenoDxAddonDownload.DownloadOrUpdateAsync(
+                gameDir,
+                url,
+                CreateUiProgress(),
+                CancellationToken.None);
+            ActionStatus.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception ex)
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "RenoDX addon install failed: " + ex.Message;
+        }
+        finally
+        {
+            _isRenoDxAddonInstallInProgress = false;
+            Vm.RefreshStoreGameAddonFileDisplay();
+        }
+    }
+
+    private async void RemoveRenoDxAddon_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Vm.HasSelectedGame || Vm.IsResolvingPrimaryExecutable)
+            return;
+
+        var url = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.RenoDxSafeAddonUrl
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.RenoDxSafeAddonUrl : null;
+        if (string.IsNullOrEmpty(url))
+            return;
+
+        var installRoot = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.CommonInstallPath
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.InstallLocation : null;
+        var resolvedExe = Vm.SelectedGameExecutablePath;
+        if (string.IsNullOrEmpty(installRoot))
+            return;
+
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(resolvedExe, installRoot);
+        var outcome = RenoDxInstalledAddonRemoval.TryRemove(gameDir, url, out var message);
+        switch (outcome)
+        {
+            case RenoDxAddonRemoveOutcome.Removed:
+            case RenoDxAddonRemoveOutcome.NotFound:
+                ActionStatus.Visibility = Visibility.Visible;
+                ActionStatus.Text = message ?? "Done.";
+                Vm.RefreshStoreGameAddonFileDisplay();
+                break;
+            case RenoDxAddonRemoveOutcome.InvalidUrl:
+            case RenoDxAddonRemoveOutcome.InvalidGameDirectory:
+            case RenoDxAddonRemoveOutcome.Failed:
+                await new ContentDialog
+                {
+                    Title = "Cannot remove RenoDX addon",
+                    Content = message ?? "Removal failed.",
+                    CloseButtonText = "OK",
+                    XamlRoot = XamlRoot!,
+                }.ShowAsync();
+                break;
+        }
+    }
+
+    private async void OpenRenoDxUntrustedReference_Click(object sender, RoutedEventArgs e)
+    {
+        var u = Vm.RenoDxUntrustedReferenceUrl?.Trim();
+        if (string.IsNullOrEmpty(u))
+            return;
+        try
+        {
+            await Windows.System.Launcher.LaunchUriAsync(new Uri(u));
+        }
+        catch (Exception ex)
+        {
+            await new ContentDialog
+            {
+                Title = "Could not open link",
+                Content = ex.Message,
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot!,
+            }.ShowAsync();
+        }
     }
 
     // #region agent log

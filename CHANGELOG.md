@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-04-07
+
 ### Added
 
 - **Display Commander download** choice per game: **Auto (exe)**, **32-bit**, or **64-bit** (radio buttons in the Display Commander card on the library detail panel for Steam and Epic). Overrides wrong detection when the resolved `.exe` is a 32-bit launcher but the real game is 64-bit (or the reverse). Choices persist under `%LocalAppData%\Programs\Display_Commander\display-commander-addon-bitness-overrides.json` (Steam App ID and Epic stable key).
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Library **Show** scope: **ComboBox** for **All** / **Favorites** / **RenoDX** / **Hidden**. **All**, **Favorites**, and **RenoDX** exclude user-hidden titles; **Hidden** lists only hidden games. **Hide from list** / **Unhide** on the detail panel; persistence under `%LocalAppData%\DisplayCommanderInstaller\` (`steam-hidden.json`, `epic-hidden.json`). **RenoDX** filter includes every wiki-matched title, not only trusted downloads.
 - Selected game panel lists **`.addon32` / `.addon64` files** present in the install folder (non-recursive).
 - **Crash diagnostics**: unhandled UI exceptions and unobserved task exceptions append to `%LocalAppData%\DisplayCommanderInstaller\logs\app.log`.
-- Library page shows **game process** state (running / not running / unknown) for the resolved `.exe`, with **Stop** (`CloseMainWindow`) and **Kill** (`entireProcessTree`) when running. Polls every ~1.5s while a path is known; 32-bit games may not be detectable from a 64-bit app.
+- Library page shows **game process** state (running / not running / unknown) for the resolved `.exe`, with **Stop** (`CloseMainWindow`) and **Kill** (`entireProcessTree`) when running. Polls every ~500ms while a path is known; 32-bit games may not be detectable from a 64-bit app.
 - When the chosen **proxy DLL** exists in the game folder, the status line includes **version text** from Windows **file metadata** (`ProductVersion`, else `FileVersion`) read from that file (e.g. `winmm.dll`), even if this installer did not deploy it.
 - Steam library **favorites**: **Add favorite** / **Remove favorite** (persisted by App ID under `%LocalAppData%\DisplayCommanderInstaller\steam-favorites.json`). Sort order unchanged (last played, then name).
 

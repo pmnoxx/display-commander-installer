@@ -260,6 +260,44 @@
                     CornerRadius="4"
                     BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
                     BorderThickness="1"
+                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                    Visibility="{x:Bind Vm.ShowRenoDxDetailSection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="RenoDX" />
+                        <TextBlock
+                            Opacity="0.9"
+                            Style="{ThemeResource BodyStrongTextBlockStyle}"
+                            Text="{x:Bind Vm.RenoDxAddonVersionStatusText, Mode=OneWay}"
+                            TextWrapping="WrapWholeWords"
+                            Visibility="{x:Bind Vm.ShowRenoDxAddonVersionStatus, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <TextBlock
+                            Opacity="0.88"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="This game is listed on the RenoDX wiki, but there is no allowlisted in-app download URL. Install the addon from a trusted source, or open the reference link below."
+                            TextWrapping="WrapWholeWords"
+                            Visibility="{x:Bind Vm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <Button
+                            HorizontalAlignment="Left"
+                            Content="Open reference link"
+                            Click="OpenRenoDxUntrustedReference_Click"
+                            Visibility="{x:Bind Vm.ShowRenoDxUntrustedReferenceUrl, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                Click="InstallOrUpdateRenoDxAddon_Click"
+                                Content="{x:Bind Vm.RenoDxAddonInstallButtonLabel, Mode=OneWay}"
+                                IsEnabled="{x:Bind Vm.CanInstallRenoDxAddon, Mode=OneWay}" />
+                            <Button
+                                Click="RemoveRenoDxAddon_Click"
+                                Content="Remove RenoDX addon"
+                                IsEnabled="{x:Bind Vm.CanUninstallRenoDxAddon, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border
+                    Padding="12"
+                    CornerRadius="4"
+                    BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    BorderThickness="1"
                     Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
                     <StackPanel Spacing="8">
                         <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="ReShade" />

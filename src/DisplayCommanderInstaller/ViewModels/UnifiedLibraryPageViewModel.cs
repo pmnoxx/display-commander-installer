@@ -229,6 +229,13 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         EpicVm.OnPageUnloaded();
     }
 
+    /// <summary>Refreshes on-disk addon / ReShade / RenoDX status lines for Steam and Epic selections.</summary>
+    public void RefreshStoreGameAddonFileDisplay()
+    {
+        SteamVm.RefreshAddonFilesDisplay();
+        EpicVm.RefreshAddonFilesDisplay();
+    }
+
     public void RefreshWinMmInstallStatus()
     {
         SteamVm.RefreshWinMmInstallStatus();
