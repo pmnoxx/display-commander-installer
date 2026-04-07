@@ -13,6 +13,14 @@
     mc:Ignorable="d">
     <Page.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <LinearGradientBrush x:Key="PlayButtonBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#FF49C35B" />
+            <GradientStop Offset="1" Color="#FF239A38" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="StopButtonBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Offset="0" Color="#FF4AA3FF" />
+            <GradientStop Offset="1" Color="#FF1F6FD6" />
+        </LinearGradientBrush>
     </Page.Resources>
     <Grid>
         <Grid Padding="16" RowSpacing="12" ColumnSpacing="12">
@@ -103,8 +111,41 @@
                 Spacing="10"
                 VerticalAlignment="Top"
                 Visibility="{x:Bind Vm.HasSelectedGame, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Selected game" />
                 <TextBlock Text="{x:Bind Vm.SelectedGameTitle, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button
+                        Click="StartGame_Click"
+                        Content="Play"
+                        MinHeight="40"
+                        FontSize="16"
+                        Foreground="White"
+                        Background="{StaticResource PlayButtonBrush}"
+                        Visibility="{x:Bind Vm.IsSelectedGameNotRunning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Button
+                        Click="StopGameProcess_Click"
+                        Content="Stop"
+                        MinHeight="40"
+                        FontSize="16"
+                        Foreground="White"
+                        Background="{StaticResource StopButtonBrush}"
+                        Visibility="{x:Bind Vm.IsSelectedGameExecutableRunning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Button
+                        Click="StartViaExe_Click"
+                        Content="EXE"
+                        MinHeight="32"
+                        MinWidth="52"
+                        FontSize="13"
+                        IsEnabled="{x:Bind Vm.CanStartSelectedGameViaExe, Mode=OneWay}"
+                        Visibility="{x:Bind Vm.IsSelectedGameNotRunning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Button
+                        Click="KillGameProcess_Click"
+                        Content="Kill"
+                        MinHeight="32"
+                        MinWidth="52"
+                        FontSize="13"
+                        IsEnabled="{x:Bind Vm.IsSelectedGameExecutableRunning, Mode=OneWay}"
+                        Visibility="{x:Bind Vm.IsSelectedGameExecutableRunning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                </StackPanel>
                 <TextBlock Opacity="0.75" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGamePathDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                 <TextBlock Opacity="0.72" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGameAddonPayloadsDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                 <TextBlock Opacity="0.85" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGameArchitectureDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
@@ -149,18 +190,23 @@
                     </StackPanel>
                 </Border>
 
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Click="OpenFolder_Click" Content="Open folder" />
-                    <Button Click="OpenSteamStore_Click" Content="Store in Steam" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
-                    <Button Click="OpenEpicStore_Click" Content="Search Epic Store" IsEnabled="{x:Bind Vm.CanSearchEpicStore, Mode=OneWay}" />
-                    <Button Click="ToggleFavorite_Click" Content="{x:Bind Vm.FavoriteToggleButtonLabel, Mode=OneWay}" />
-                    <Button Click="ToggleHidden_Click" Content="{x:Bind Vm.HiddenToggleButtonLabel, Mode=OneWay}" />
+                <StackPanel
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Visibility="{x:Bind Vm.IsSteamSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Button Click="OpenSteamStore_Click" Content="Store page" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
+                    <Button Click="OpenSteamDiscussions_Click" Content="Discussions" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
+                    <Button Click="OpenSteamGuides_Click" Content="Guides" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Click="StartGame_Click" Content="Start game" />
-                    <Button Click="StartViaExe_Click" Content="Start via exe" IsEnabled="{x:Bind Vm.CanStartSelectedGameViaExe, Mode=OneWay}" />
-                    <Button Click="StopGameProcess_Click" Content="Stop" IsEnabled="{x:Bind Vm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
-                    <Button Click="KillGameProcess_Click" Content="Kill" IsEnabled="{x:Bind Vm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
+                    <Button Click="OpenFolder_Click" Content="Open folder" />
+                    <Button Click="ToggleFavorite_Click" Content="{x:Bind Vm.FavoriteToggleButtonLabel, Mode=OneWay}" />
+                    <Button Click="ToggleHidden_Click" Content="{x:Bind Vm.HiddenToggleButtonLabel, Mode=OneWay}" />
+                    <Button
+                        Click="OpenEpicStore_Click"
+                        Content="Search Epic Store"
+                        IsEnabled="{x:Bind Vm.CanSearchEpicStore, Mode=OneWay}"
+                        Visibility="{x:Bind Vm.IsEpicSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                 </StackPanel>
                 <TextBlock x:Name="ActionStatus" Opacity="0.85" TextWrapping="WrapWholeWords" Visibility="Collapsed" />
 

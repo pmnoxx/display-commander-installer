@@ -18,6 +18,12 @@ if [[ ! -f "$exe" ]]; then
   exit 1
 fi
 
+exe_name="$(basename "$exe")"
+if command -v taskkill >/dev/null 2>&1; then
+  # Ensure reruns work by terminating an existing app instance first.
+  taskkill //F //IM "$exe_name" >/dev/null 2>&1 || true
+fi
+
 # Start the app without blocking the shell (do not use exec).
 "$exe" "$@" &
 disown 2>/dev/null || true

@@ -273,6 +273,8 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         IsEpicSelected ? EpicVm.IsSelectedGameExecutableRunning :
         false;
 
+    public bool IsSelectedGameNotRunning => !IsSelectedGameExecutableRunning;
+
     public string SelectedGameExecutablePath =>
         IsSteamSelected ? SteamVm.SelectedGameExecutablePath ?? "" :
         IsEpicSelected ? EpicVm.SelectedGameExecutablePath ?? "" :
@@ -794,6 +796,7 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSearchEpicStore));
         OnPropertyChanged(nameof(CanStartSelectedGameViaExe));
         OnPropertyChanged(nameof(IsSelectedGameExecutableRunning));
+        OnPropertyChanged(nameof(IsSelectedGameNotRunning));
         OnPropertyChanged(nameof(SelectedGameExecutablePath));
         OnPropertyChanged(nameof(SelectedGameExecutableBitness));
         OnPropertyChanged(nameof(IsResolvingPrimaryExecutable));

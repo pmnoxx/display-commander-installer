@@ -353,6 +353,48 @@ public sealed partial class LibraryPage : Page
         }
     }
 
+    private void OpenSteamDiscussions_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm.SelectedSteamGame is null)
+            return;
+
+        var appId = Vm.SelectedSteamGame.AppId;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://steamcommunity.com/app/{appId}/discussions/",
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not open Steam discussions.";
+        }
+    }
+
+    private void OpenSteamGuides_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm.SelectedSteamGame is null)
+            return;
+
+        var appId = Vm.SelectedSteamGame.AppId;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://steamcommunity.com/app/{appId}/guides/",
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not open Steam guides.";
+        }
+    }
+
     private void OpenEpicStore_Click(object sender, RoutedEventArgs e)
     {
         if (Vm.SelectedEpicGame is null)
