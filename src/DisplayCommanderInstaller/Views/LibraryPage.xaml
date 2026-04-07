@@ -194,6 +194,12 @@
                                 Visibility="{x:Bind SteamVm.ShowRenoDxDetailSection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <StackPanel Spacing="8">
                                     <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="RenoDX" />
+                                    <TextBlock
+                                        Opacity="0.85"
+                                        Style="{ThemeResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind SteamVm.RenoDxAddonVersionStatusText, Mode=OneWay}"
+                                        TextWrapping="WrapWholeWords"
+                                        Visibility="{x:Bind SteamVm.ShowRenoDxAddonVersionStatus, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     <StackPanel
                                         Spacing="4"
                                         Visibility="{x:Bind SteamVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -447,6 +453,12 @@
                                 Visibility="{x:Bind EpicVm.ShowRenoDxDetailSection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <StackPanel Spacing="8">
                                     <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="RenoDX" />
+                                    <TextBlock
+                                        Opacity="0.85"
+                                        Style="{ThemeResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind EpicVm.RenoDxAddonVersionStatusText, Mode=OneWay}"
+                                        TextWrapping="WrapWholeWords"
+                                        Visibility="{x:Bind EpicVm.ShowRenoDxAddonVersionStatus, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     <StackPanel
                                         Spacing="4"
                                         Visibility="{x:Bind EpicVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">

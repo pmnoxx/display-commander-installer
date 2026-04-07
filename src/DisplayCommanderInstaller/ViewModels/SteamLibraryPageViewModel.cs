@@ -207,6 +207,8 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowRenoDxUntrustedSourceWarning));
         OnPropertyChanged(nameof(RenoDxUntrustedReferenceUrl));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedReferenceUrl));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
         LoadSteamDisplayCommanderAddonPayloadModeFromStore();
         OnPropertyChanged(nameof(HasSelectedGame));
         OnPropertyChanged(nameof(ShowDisplayCommanderAddonModeUi));
@@ -222,6 +224,8 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
         OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
     }
@@ -241,6 +245,8 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
     }
 
@@ -295,11 +301,29 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     public bool ShowRenoDxUntrustedReferenceUrl =>
         ShowRenoDxUntrustedSourceWarning && !string.IsNullOrEmpty(RenoDxUntrustedReferenceUrl);
 
+    /// <summary>PE file version from the wiki allowlisted RenoDX addon on disk (or install hint).</summary>
+    public string RenoDxAddonVersionStatusText =>
+        SelectedGame is null
+            ? ""
+            : RenoDxAddonFileVersion.FormatInstallFolderVersionStatus(
+                SelectedGameExecutablePath,
+                SelectedGame.CommonInstallPath,
+                SelectedGame.RenoDxSafeAddonUrl,
+                IsResolvingPrimaryExecutable);
+
+    public bool ShowRenoDxAddonVersionStatus =>
+        SelectedGame is not null &&
+        !string.IsNullOrEmpty(SelectedGame.RenoDxSafeAddonUrl) &&
+        !IsResolvingPrimaryExecutable &&
+        !string.IsNullOrWhiteSpace(SelectedGame.CommonInstallPath);
+
     public void RefreshAddonFilesDisplay()
     {
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
     }
 
     public bool CanOpenSteamStore => SelectedGame is not null;

@@ -206,6 +206,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowRenoDxUntrustedSourceWarning));
         OnPropertyChanged(nameof(RenoDxUntrustedReferenceUrl));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedReferenceUrl));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
         LoadEpicDisplayCommanderAddonPayloadModeFromStore();
         OnPropertyChanged(nameof(HasSelectedGame));
         OnPropertyChanged(nameof(ShowDisplayCommanderAddonModeUi));
@@ -221,6 +223,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
         OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
     }
@@ -240,6 +244,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
     }
 
@@ -294,11 +300,29 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     public bool ShowRenoDxUntrustedReferenceUrl =>
         ShowRenoDxUntrustedSourceWarning && !string.IsNullOrEmpty(RenoDxUntrustedReferenceUrl);
 
+    /// <summary>PE file version from the wiki allowlisted RenoDX addon on disk (or install hint).</summary>
+    public string RenoDxAddonVersionStatusText =>
+        SelectedGame is null
+            ? ""
+            : RenoDxAddonFileVersion.FormatInstallFolderVersionStatus(
+                SelectedGameExecutablePath,
+                SelectedGame.InstallLocation,
+                SelectedGame.RenoDxSafeAddonUrl,
+                IsResolvingPrimaryExecutable);
+
+    public bool ShowRenoDxAddonVersionStatus =>
+        SelectedGame is not null &&
+        !string.IsNullOrEmpty(SelectedGame.RenoDxSafeAddonUrl) &&
+        !IsResolvingPrimaryExecutable &&
+        !string.IsNullOrWhiteSpace(SelectedGame.InstallLocation);
+
     public void RefreshAddonFilesDisplay()
     {
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
+        OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
+        OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
     }
 
     public bool CanOpenEpicLauncher =>
