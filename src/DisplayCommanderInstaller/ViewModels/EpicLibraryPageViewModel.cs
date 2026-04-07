@@ -9,6 +9,7 @@ using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.GameIcons;
 using DisplayCommanderInstaller.Core.Models;
+using DisplayCommanderInstaller.Core.ReShade;
 using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Core.Steam;
 using DisplayCommanderInstaller.Services;
@@ -208,6 +209,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowRenoDxUntrustedReferenceUrl));
         OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
         OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
+        OnPropertyChanged(nameof(ReShadeStatusText));
+        OnPropertyChanged(nameof(CanUpgradeReShade));
         LoadEpicDisplayCommanderAddonPayloadModeFromStore();
         OnPropertyChanged(nameof(HasSelectedGame));
         OnPropertyChanged(nameof(ShowDisplayCommanderAddonModeUi));
@@ -225,6 +228,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
         OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
         OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
+        OnPropertyChanged(nameof(ReShadeStatusText));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
         OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
     }
@@ -246,6 +250,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
         OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
         OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
+        OnPropertyChanged(nameof(ReShadeStatusText));
+        OnPropertyChanged(nameof(CanUpgradeReShade));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
     }
 
@@ -316,6 +322,23 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         !IsResolvingPrimaryExecutable &&
         !string.IsNullOrWhiteSpace(SelectedGame.InstallLocation);
 
+    public bool CanUpgradeReShade =>
+        SelectedGame is not null && !IsResolvingPrimaryExecutable;
+
+    public string ReShadeStatusText
+    {
+        get
+        {
+            if (SelectedGame is null)
+                return "Select a game to see ReShade status.";
+            var root = SelectedGame.InstallLocation;
+            if (string.IsNullOrWhiteSpace(root))
+                return "No install folder is set for this game.";
+            var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
+            return ReShadeInstallStatus.FormatInstallFolderStatus(dir, IsResolvingPrimaryExecutable);
+        }
+    }
+
     public void RefreshAddonFilesDisplay()
     {
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
@@ -323,6 +346,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
         OnPropertyChanged(nameof(RenoDxAddonVersionStatusText));
         OnPropertyChanged(nameof(ShowRenoDxAddonVersionStatus));
+        OnPropertyChanged(nameof(ReShadeStatusText));
     }
 
     public bool CanOpenEpicLauncher =>

@@ -131,6 +131,23 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+                <Border
+                    Padding="12"
+                    CornerRadius="4"
+                    BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    BorderThickness="1"
+                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="ReShade" />
+                        <TextBlock Opacity="0.9" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Vm.LocalReShadeStatusText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        <TextBlock Opacity="0.9" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Vm.GlobalReShadeStatusText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        <TextBlock Opacity="0.85" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.EffectiveReShadeSourceText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Click="InstallOrUpdateLocalReShade_Click" Content="Install / Update Local" IsEnabled="{x:Bind Vm.CanInstallOrUpdateLocalReShade, Mode=OneWay}" />
+                            <Button Click="InstallOrUpdateGlobalReShade_Click" Content="Install / Update Global" IsEnabled="{x:Bind Vm.CanInstallOrUpdateGlobalReShade, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Click="OpenFolder_Click" Content="Open folder" />

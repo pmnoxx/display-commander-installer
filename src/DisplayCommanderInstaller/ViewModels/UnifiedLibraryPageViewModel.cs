@@ -6,7 +6,9 @@ using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DisplayCommanderInstaller.Core.GameIcons;
+using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.Models;
+using DisplayCommanderInstaller.Core.ReShade;
 using DisplayCommanderInstaller.Services;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -340,6 +342,52 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         IsEpicSelected ? EpicVm.SelectedGameProcessStatusText :
         IsSteamSelected ? SteamVm.SelectedGameProcessStatusText :
         "Game process: —";
+
+    private static string GetGlobalReShadeFolder()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(local, "Programs", "Display_Commander", "Reshade");
+    }
+
+    private string? SelectedInstallRoot =>
+        IsEpicSelected ? SelectedEpicGame?.InstallLocation :
+        IsSteamSelected ? SelectedSteamGame?.CommonInstallPath :
+        IsCustomSelected ? SelectedCustomGame?.InstallLocation :
+        null;
+
+    public string SelectedGameReShadeFolder =>
+        string.IsNullOrWhiteSpace(SelectedInstallRoot)
+            ? ""
+            : GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, SelectedInstallRoot);
+
+    public string LocalReShadeStatusText =>
+        !HasSelectedGame
+            ? "Local: select a game to see status."
+            : string.IsNullOrWhiteSpace(SelectedGameReShadeFolder)
+                ? "Local: no game install folder."
+                : "Local:\n" + ReShadeInstallStatus.FormatInstallFolderStatus(SelectedGameReShadeFolder, IsResolvingPrimaryExecutable);
+
+    public string GlobalReShadeStatusText =>
+        "Global:\n" + ReShadeInstallStatus.FormatInstallFolderStatus(GetGlobalReShadeFolder());
+
+    public string EffectiveReShadeSourceText
+    {
+        get
+        {
+            if (!HasSelectedGame || string.IsNullOrWhiteSpace(SelectedGameReShadeFolder))
+                return "Active source: global (when available).";
+            var hasLocal = ReShadeInstallStatus.HasAnyInstalled(SelectedGameReShadeFolder);
+            var hasGlobal = ReShadeInstallStatus.HasAnyInstalled(GetGlobalReShadeFolder());
+            if (hasLocal)
+                return "Active source: local game folder (preferred).";
+            if (hasGlobal)
+                return "Active source: global folder (local not found).";
+            return "Active source: none detected.";
+        }
+    }
+
+    public bool CanInstallOrUpdateLocalReShade => HasSelectedGame && !string.IsNullOrWhiteSpace(SelectedGameReShadeFolder);
+    public bool CanInstallOrUpdateGlobalReShade => true;
 
     public bool ShowRenoDxDetailSection =>
         IsEpicSelected ? EpicVm.ShowRenoDxDetailSection :
@@ -759,6 +807,12 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(SelectedGameArchitectureDisplay));
         OnPropertyChanged(nameof(SelectedGameProcessStatusText));
+        OnPropertyChanged(nameof(SelectedGameReShadeFolder));
+        OnPropertyChanged(nameof(LocalReShadeStatusText));
+        OnPropertyChanged(nameof(GlobalReShadeStatusText));
+        OnPropertyChanged(nameof(EffectiveReShadeSourceText));
+        OnPropertyChanged(nameof(CanInstallOrUpdateLocalReShade));
+        OnPropertyChanged(nameof(CanInstallOrUpdateGlobalReShade));
         OnPropertyChanged(nameof(ShowRenoDxDetailSection));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));

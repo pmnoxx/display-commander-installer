@@ -1,4 +1,7 @@
 using System.Linq;
+using System.IO;
+using System.Threading;
+using DisplayCommanderInstaller.Core.ReShade;
 using DisplayCommanderInstaller.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -20,10 +23,12 @@ public sealed partial class SettingsPage : Page
         _uiInit = true;
         UrlBox.Text = AppServices.Settings.DisplayCommanderDownloadUrl;
         PerGameFolderCheck.IsChecked = AppServices.DisplayCommanderConfigMarker.UsePerGameFolder;
+        GlobalShadersCheck.IsChecked = AppServices.DisplayCommanderConfigMarker.UseGlobalShaders;
         var names = DisplayCommanderManagedProxyDlls.AllFileNames.ToList();
         ProxyDllCombo.ItemsSource = names;
         var current = AppServices.Settings.DisplayCommanderProxyDllFileName;
         ProxyDllCombo.SelectedItem = names.First(n => n.Equals(current, StringComparison.OrdinalIgnoreCase));
+        RefreshReShadeStatus();
         _uiInit = false;
     }
 
@@ -45,6 +50,10 @@ public sealed partial class SettingsPage : Page
     private void PerGameFolderCheck_Checked(object sender, RoutedEventArgs e) => ApplyPerGameFolder(true);
 
     private void PerGameFolderCheck_Unchecked(object sender, RoutedEventArgs e) => ApplyPerGameFolder(false);
+
+    private void GlobalShadersCheck_Checked(object sender, RoutedEventArgs e) => ApplyGlobalShadersMarker(true);
+
+    private void GlobalShadersCheck_Unchecked(object sender, RoutedEventArgs e) => ApplyGlobalShadersMarker(false);
 
     private void ProxyDllCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -84,6 +93,62 @@ public sealed partial class SettingsPage : Page
             _uiInit = true;
             PerGameFolderCheck.IsChecked = AppServices.DisplayCommanderConfigMarker.UsePerGameFolder;
             _uiInit = false;
+        }
+    }
+
+    private void ApplyGlobalShadersMarker(bool enabled)
+    {
+        if (_uiInit)
+            return;
+        try
+        {
+            AppServices.DisplayCommanderConfigMarker.SetUseGlobalShaders(enabled);
+            SettingsStatus.Text = enabled
+                ? "Created .DC_GLOBAL_SHADERS."
+                : "Removed .DC_GLOBAL_SHADERS.";
+            SettingsStatus.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex)
+        {
+            SettingsStatus.Text = "Could not update global shaders marker setting: " + ex.Message;
+            SettingsStatus.Visibility = Visibility.Visible;
+            _uiInit = true;
+            GlobalShadersCheck.IsChecked = AppServices.DisplayCommanderConfigMarker.UseGlobalShaders;
+            _uiInit = false;
+        }
+    }
+
+    private static string GetGlobalReShadeFolder()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(local, "Programs", "Display_Commander", "Reshade");
+    }
+
+    private void RefreshReShadeStatus()
+    {
+        ReShadeGlobalStatus.Text = ReShadeInstallStatus.FormatInstallFolderStatus(GetGlobalReShadeFolder());
+    }
+
+    private async void UpgradeReShade_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var result = await AppServices.ReShadeDownload.DownloadLatestAndExtractDllsAsync(
+                GetGlobalReShadeFolder(),
+                null,
+                CancellationToken.None);
+            var extractedNames = string.Join(", ", result.ExtractedFiles.Select(Path.GetFileName));
+            SettingsStatus.Text = $"ReShade {result.Release.Version} extracted: {extractedNames}.";
+            SettingsStatus.Visibility = Visibility.Visible;
+        }
+        catch (Exception ex)
+        {
+            SettingsStatus.Text = "ReShade update failed: " + ex.Message;
+            SettingsStatus.Visibility = Visibility.Visible;
+        }
+        finally
+        {
+            RefreshReShadeStatus();
         }
     }
 }

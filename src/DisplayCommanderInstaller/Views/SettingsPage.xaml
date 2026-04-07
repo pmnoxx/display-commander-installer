@@ -60,12 +60,35 @@
             <TextBlock
                 Margin="0,24,0,0"
                 Style="{ThemeResource SubtitleTextBlockStyle}"
-                Text="Coming later" />
+                Text="Global shaders marker" />
+            <CheckBox
+                x:Name="GlobalShadersCheck"
+                Checked="GlobalShadersCheck_Checked"
+                Content="Enable global shaders marker"
+                IsThreeState="False"
+                Unchecked="GlobalShadersCheck_Unchecked" />
             <TextBlock
                 Opacity="0.75"
                 Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="ReShade (ReShade64.dll), RenoDX bundles, and other stores (Epic, GOG, Xbox) are intentionally deferred."
+                Text="When enabled, creates .DC_GLOBAL_SHADERS next to the Display Commander program folder (%LocalAppData%\Programs\Display_Commander). This enables global ReShade shader/texture search path injection for all games. When disabled, that file is removed."
                 TextWrapping="WrapWholeWords" />
+            <TextBlock
+                Margin="0,24,0,0"
+                Style="{ThemeResource SubtitleTextBlockStyle}"
+                Text="ReShade" />
+            <TextBlock
+                Opacity="0.75"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="Global ReShade folder: %LocalAppData%\Programs\Display_Commander\Reshade. This checks reshade64.dll and reshade32.dll and reads file version metadata."
+                TextWrapping="WrapWholeWords" />
+            <TextBlock
+                x:Name="ReShadeGlobalStatus"
+                Opacity="0.9"
+                Style="{ThemeResource BodyStrongTextBlockStyle}"
+                TextWrapping="WrapWholeWords" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Click="UpgradeReShade_Click" Content="Install / Upgrade ReShade" />
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

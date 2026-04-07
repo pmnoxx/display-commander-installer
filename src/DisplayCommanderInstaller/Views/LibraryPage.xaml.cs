@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
@@ -14,6 +15,8 @@ namespace DisplayCommanderInstaller.Views;
 
 public sealed partial class LibraryPage : Page
 {
+    private const string DebugLogPath = "debug-cc013d.log";
+    private bool _isReShadeInstallInProgress;
     public UnifiedLibraryPageViewModel Vm { get; }
 
     public LibraryPage()
@@ -191,6 +194,119 @@ public sealed partial class LibraryPage : Page
             await dlg.ShowAsync();
         }
     }
+
+    private static string GetGlobalReShadeFolder()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(local, "Programs", "Display_Commander", "Reshade");
+    }
+
+    private async Task InstallOrUpdateReShadeAsync(string targetDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(targetDirectory))
+            return;
+        if (_isReShadeInstallInProgress)
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "ReShade install/update is already running.";
+            // #region agent log
+            DebugLog("run3", "H13", "LibraryPage.InstallOrUpdateReShadeAsync", "Ignored re-entrant click", new Dictionary<string, object?>
+            {
+                ["targetDirectory"] = targetDirectory,
+            });
+            // #endregion
+            return;
+        }
+        try
+        {
+            _isReShadeInstallInProgress = true;
+            // #region agent log
+            DebugLog("run2", "H8", "LibraryPage.InstallOrUpdateReShadeAsync", "Library ReShade install entered", new Dictionary<string, object?>
+            {
+                ["targetDirectory"] = targetDirectory,
+            });
+            // #endregion
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Working…";
+            var result = await AppServices.ReShadeDownload.DownloadLatestAndExtractDllsAsync(
+                targetDirectory,
+                CreateUiProgress(),
+                CancellationToken.None);
+
+            // #region agent log
+            DebugLog("post-fix", "H10", "LibraryPage.InstallOrUpdateReShadeAsync", "ReShade DLL extraction completed", new Dictionary<string, object?>
+            {
+                ["targetDirectory"] = targetDirectory,
+                ["releaseVersion"] = result.Release.Version,
+                ["extractedCount"] = result.ExtractedFiles.Count,
+                ["extractedFiles"] = result.ExtractedFiles,
+            });
+            // #endregion
+            var extractedNames = string.Join(", ", result.ExtractedFiles.Select(Path.GetFileName));
+            ActionStatus.Text = $"ReShade {result.Release.Version} extracted: {extractedNames}.";
+        }
+        catch (Exception ex)
+        {
+            // #region agent log
+            DebugLog("run3", "H14", "LibraryPage.InstallOrUpdateReShadeAsync", "Library ReShade install failed", new Dictionary<string, object?>
+            {
+                ["targetDirectory"] = targetDirectory,
+                ["exception"] = ex.Message,
+            });
+            // #endregion
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "ReShade update failed: " + ex.Message;
+        }
+        finally
+        {
+            _isReShadeInstallInProgress = false;
+            Vm.RefreshWinMmInstallStatus();
+        }
+    }
+
+    private async void InstallOrUpdateLocalReShade_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Vm.HasSelectedGame)
+            return;
+        var installRoot = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.CommonInstallPath
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.InstallLocation
+            : Vm.SelectedCustomGame?.InstallLocation;
+        var resolvedExe = Vm.SelectedGameExecutablePath;
+        if (string.IsNullOrWhiteSpace(installRoot))
+            return;
+
+        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(resolvedExe, installRoot);
+        await InstallOrUpdateReShadeAsync(gameDir);
+    }
+
+    private async void InstallOrUpdateGlobalReShade_Click(object sender, RoutedEventArgs e)
+    {
+        await InstallOrUpdateReShadeAsync(GetGlobalReShadeFolder());
+    }
+
+    // #region agent log
+    private static void DebugLog(string runId, string hypothesisId, string location, string message, Dictionary<string, object?> data)
+    {
+        try
+        {
+            var payload = new
+            {
+                sessionId = "cc013d",
+                runId,
+                hypothesisId,
+                location,
+                message,
+                data,
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            };
+            File.AppendAllText(DebugLogPath, JsonSerializer.Serialize(payload) + Environment.NewLine);
+        }
+        catch
+        {
+            // best effort
+        }
+    }
+    // #endregion
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {

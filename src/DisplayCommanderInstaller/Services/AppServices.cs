@@ -19,6 +19,8 @@ public static class AppServices
     public static CustomGameStore CustomGames { get; } = new();
     public static RenoDxModCatalogService RenoDxCatalog { get; } = new();
     public static RenoDxAddonDownloadService RenoDxAddonDownload { get; } = new();
+    public static ReShadeReleaseDiscoveryService ReShadeReleaseDiscovery { get; } = new();
+    public static ReShadeDownloadService ReShadeDownload { get; } = new();
     public static DisplayCommanderAddonBitnessOverrideStore DisplayCommanderAddonBitnessOverrides { get; } = new();
     public static GameExecutableIconCache GameExecutableIcons { get; } = new();
 }
