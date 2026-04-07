@@ -101,6 +101,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         }
     }
 
+    public bool HasSelectedGame => SelectedGame is not null;
+
     public bool ShowDisplayCommanderAddonModeUi => SelectedGame is not null;
 
     public string DisplayCommanderAddonChoiceSummary
@@ -189,6 +191,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedGamePathDisplay));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(CanRemoveDisplayCommander));
         OnPropertyChanged(nameof(CanOpenEpicLauncher));
         OnPropertyChanged(nameof(CanSearchEpicStore));
         OnPropertyChanged(nameof(SelectedGameIsFavorite));
@@ -204,6 +207,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(RenoDxUntrustedReferenceUrl));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedReferenceUrl));
         LoadEpicDisplayCommanderAddonPayloadModeFromStore();
+        OnPropertyChanged(nameof(HasSelectedGame));
         OnPropertyChanged(nameof(ShowDisplayCommanderAddonModeUi));
         OnPropertyChanged(nameof(DisplayCommanderAddonPayloadModeIndex));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
@@ -213,6 +217,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     partial void OnSelectedGameExecutablePathChanged(string? value)
     {
         OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(CanRemoveDisplayCommander));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
         OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
@@ -229,6 +234,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     partial void OnIsResolvingPrimaryExecutableChanged(bool value)
     {
         OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(CanRemoveDisplayCommander));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanInstallDisplayCommander));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
@@ -383,7 +389,26 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         }
     }
 
-    public void RefreshWinMmInstallStatus() => OnPropertyChanged(nameof(WinMmInstallStatusText));
+    public bool CanRemoveDisplayCommander
+    {
+        get
+        {
+            if (SelectedGame is null)
+                return false;
+            var root = SelectedGame.InstallLocation;
+            if (string.IsNullOrWhiteSpace(root))
+                return false;
+            var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
+            var proxy = AppServices.Settings.DisplayCommanderProxyDllFileName;
+            return AppServices.Install.GetInstallState(dir, proxy, out _) == WinMmInstallKind.Ours;
+        }
+    }
+
+    public void RefreshWinMmInstallStatus()
+    {
+        OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(CanRemoveDisplayCommander));
+    }
 
     private static string FormatOursInstallStatus(string gameDir, string proxy) =>
         AppendProxyDllVersionLine(

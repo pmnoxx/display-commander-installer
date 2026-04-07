@@ -120,7 +120,8 @@
                             Grid.Row="2"
                             Grid.Column="2"
                             Spacing="10"
-                            VerticalAlignment="Top">
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind SteamVm.HasSelectedGame, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Selected game" />
                             <TextBlock Text="{x:Bind SteamVm.SelectedGameTitle, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                             <TextBlock
@@ -177,7 +178,10 @@
                                             Click="Install_Click"
                                             Content="Install Display Commander"
                                             IsEnabled="{x:Bind SteamVm.CanInstallDisplayCommander, Mode=OneWay}" />
-                                        <Button Click="Remove_Click" Content="Remove" />
+                                        <Button
+                                            Click="Remove_Click"
+                                            Content="Remove"
+                                            IsEnabled="{x:Bind SteamVm.CanRemoveDisplayCommander, Mode=OneWay}" />
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -369,7 +373,8 @@
                             Grid.Row="2"
                             Grid.Column="2"
                             Spacing="10"
-                            VerticalAlignment="Top">
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind EpicVm.HasSelectedGame, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Selected game" />
                             <TextBlock Text="{x:Bind EpicVm.SelectedGameTitle, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                             <TextBlock
@@ -426,7 +431,10 @@
                                             Click="Install_Click"
                                             Content="Install Display Commander"
                                             IsEnabled="{x:Bind EpicVm.CanInstallDisplayCommander, Mode=OneWay}" />
-                                        <Button Click="Remove_Click" Content="Remove" />
+                                        <Button
+                                            Click="Remove_Click"
+                                            Content="Remove"
+                                            IsEnabled="{x:Bind EpicVm.CanRemoveDisplayCommander, Mode=OneWay}" />
                                     </StackPanel>
                                 </StackPanel>
                             </Border>

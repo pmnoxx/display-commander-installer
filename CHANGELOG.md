@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Remove** (Display Commander) is **disabled** when Display Commander is **not** installed by this app for the selected game (no proxy DLL, or a different file without this installer’s marker).
 - Library detail panel: **Display Commander** (proxy DLL status, **Display Commander download** radios, **Install** / **Remove**) is grouped in a **bordered card** (same chrome as RenoDX), after game process status on Steam and Epic; those controls are no longer above process status or in the main horizontal action row.
 - Library detail panel: **RenoDX** (untrusted warning when applicable, **Install / update** / **Remove** addon) is grouped in a **bordered card** for wiki-listed games; those controls are no longer in the main horizontal action row (Steam and Epic).
 - **Display Commander proxy DLL** install/remove/status, **RenoDX addon** downloads, and **`.addon32` / `.addon64` listing** use the folder that contains the **resolved game `.exe`** when one is found (e.g. `…\Hades II\Ship`), falling back to the Steam `common\{installdir}` or Epic install root if no exe is resolved. **Remove** tries the exe folder first, then the install root (covers older installs that only had the proxy at the manifest root). **Install** / RenoDX actions stay disabled while executable detection is in progress.
