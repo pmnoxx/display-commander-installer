@@ -17,4 +17,5 @@ public static class AppServices
     public static RenoDxModCatalogService RenoDxCatalog { get; } = new();
     public static RenoDxAddonDownloadService RenoDxAddonDownload { get; } = new();
     public static DisplayCommanderAddonBitnessOverrideStore DisplayCommanderAddonBitnessOverrides { get; } = new();
+    public static GameExecutableIconCache GameExecutableIcons { get; } = new();
 }

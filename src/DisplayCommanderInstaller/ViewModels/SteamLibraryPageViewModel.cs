@@ -1,15 +1,20 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Binary;
 using DisplayCommanderInstaller.Core.GameFolder;
+using DisplayCommanderInstaller.Core.GameIcons;
 using DisplayCommanderInstaller.Core.Models;
 using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Core.Steam;
 using DisplayCommanderInstaller.Services;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.Storage;
+using Windows.Storage.Streams;
 
 namespace DisplayCommanderInstaller.ViewModels;
 
@@ -21,13 +26,19 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     private DispatcherQueueTimer? _gameRunPollTimer;
     private bool _suppressAddonBitnessPersist;
     private int _displayCommanderAddonPayloadModeIndex;
+    private CancellationTokenSource? _steamIconPrefetchCts;
+    private int _steamIconGeneration;
+    private bool _suppressListSelectionSync;
 
     public SteamLibraryPageViewModel(DispatcherQueue dispatcher)
     {
         _dispatcher = dispatcher;
     }
 
-    public ObservableCollection<SteamGameEntry> FilteredGames { get; } = new();
+    public ObservableCollection<SteamLibraryListItem> FilteredGames { get; } = new();
+
+    [ObservableProperty]
+    private SteamLibraryListItem? selectedListItem;
 
     [ObservableProperty]
     private SteamGameEntry? selectedGame;
@@ -144,8 +155,36 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         }
     }
 
+    partial void OnSelectedListItemChanged(SteamLibraryListItem? value)
+    {
+        if (_suppressListSelectionSync)
+            return;
+        _suppressListSelectionSync = true;
+        try
+        {
+            SelectedGame = value?.Game;
+        }
+        finally
+        {
+            _suppressListSelectionSync = false;
+        }
+    }
+
     partial void OnSelectedGameChanged(SteamGameEntry? value)
     {
+        if (!_suppressListSelectionSync)
+        {
+            _suppressListSelectionSync = true;
+            try
+            {
+                SelectedListItem = value is null ? null : FilteredGames.FirstOrDefault(r => ReferenceEquals(r.Game, value));
+            }
+            finally
+            {
+                _suppressListSelectionSync = false;
+            }
+        }
+
         RestartArchitectureDetection(value);
         OnPropertyChanged(nameof(SelectedGameTitle));
         OnPropertyChanged(nameof(SelectedGamePathDisplay));
@@ -331,6 +370,9 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     {
         StopGameRunPolling();
         _architectureDetectCts?.Cancel();
+        _steamIconPrefetchCts?.Cancel();
+        _steamIconPrefetchCts?.Dispose();
+        _steamIconPrefetchCts = null;
     }
 
     public void RequestGameProcessRefresh() => PollGameRunningState();
@@ -598,9 +640,114 @@ public partial class SteamLibraryPageViewModel : ObservableObject
         foreach (var g in query
                      .OrderByDescending(g => lastPlayed.TryGetLastPlayedUtc(g.AppId) ?? DateTimeOffset.MinValue)
                      .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
-            FilteredGames.Add(g);
+            FilteredGames.Add(new SteamLibraryListItem(g));
 
-        if (SelectedGame is not null && !FilteredGames.Contains(SelectedGame))
+        if (SelectedGame is not null && !FilteredGames.Any(r => ReferenceEquals(r.Game, SelectedGame)))
             SelectedGame = null;
+
+        _suppressListSelectionSync = true;
+        try
+        {
+            SelectedListItem = SelectedGame is null ? null : FilteredGames.FirstOrDefault(r => ReferenceEquals(r.Game, SelectedGame));
+        }
+        finally
+        {
+            _suppressListSelectionSync = false;
+        }
+
+        ScheduleSteamIconPrefetch();
+    }
+
+    private void ScheduleSteamIconPrefetch()
+    {
+        _steamIconPrefetchCts?.Cancel();
+        _steamIconPrefetchCts?.Dispose();
+        _steamIconPrefetchCts = new CancellationTokenSource();
+        var token = _steamIconPrefetchCts.Token;
+        _steamIconGeneration++;
+        var gen = _steamIconGeneration;
+        var rows = FilteredGames.ToList();
+        if (rows.Count == 0)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var opts = new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token };
+                await Parallel.ForEachAsync(rows, opts, async (item, ct) =>
+                {
+                    await PrefetchSteamRowIconAsync(item, gen, ct).ConfigureAwait(false);
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch
+            {
+                // ignored
+            }
+        }, token);
+    }
+
+    private async Task PrefetchSteamRowIconAsync(SteamLibraryListItem item, int generation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (generation != _steamIconGeneration)
+                return;
+            string? exe;
+            try
+            {
+                exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(item.Game, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return;
+            }
+
+            var png = await AppServices.GameExecutableIcons.TryEnsureCachedIconAsync(
+                exe,
+                GameIconCacheNaming.SteamSubdirectory,
+                GameIconCacheNaming.SteamFileBase(item.Game.AppId),
+                cancellationToken).ConfigureAwait(false);
+            if (png is null || generation != _steamIconGeneration)
+                return;
+
+            _dispatcher.TryEnqueue(() => _ = ApplySteamRowIconFromCacheAsync(item, png, generation));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            // ignored
+        }
+    }
+
+    private async Task ApplySteamRowIconFromCacheAsync(SteamLibraryListItem item, string pngPath, int generation)
+    {
+        if (generation != _steamIconGeneration)
+            return;
+        if (!FilteredGames.Contains(item))
+            return;
+        try
+        {
+            var file = await StorageFile.GetFileFromPathAsync(pngPath);
+            using IRandomAccessStream stream = await file.OpenReadAsync();
+            var bitmap = new BitmapImage();
+            await bitmap.SetSourceAsync(stream);
+            if (generation != _steamIconGeneration || !FilteredGames.Contains(item))
+                return;
+            item.Icon = bitmap;
+        }
+        catch
+        {
+            // ignored
+        }
     }
 }

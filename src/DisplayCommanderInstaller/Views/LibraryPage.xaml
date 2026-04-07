@@ -6,8 +6,10 @@
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:converters="using:DisplayCommanderInstaller.Converters"
+    xmlns:automation="using:Microsoft.UI.Xaml.Automation"
     xmlns:local="using:DisplayCommanderInstaller.Views"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:DisplayCommanderInstaller.ViewModels"
     mc:Ignorable="d">
     <Page.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
@@ -72,34 +74,48 @@
                             DoubleTapped="SteamGameList_DoubleTapped"
                             IsItemClickEnabled="False"
                             ItemsSource="{x:Bind SteamVm.FilteredGames, Mode=OneWay}"
-                            SelectedItem="{x:Bind SteamVm.SelectedGame, Mode=TwoWay}"
+                            SelectedItem="{x:Bind SteamVm.SelectedListItem, Mode=TwoWay}"
                             SelectionMode="Single">
                             <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:SteamGameEntry" xmlns:models="using:DisplayCommanderInstaller.Core.Models">
-                                    <StackPanel Padding="4,6" Spacing="2">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock
-                                                FontWeight="SemiBold"
-                                                Text="{x:Bind Name}"
-                                                TextTrimming="CharacterEllipsis" />
-                                            <Border
-                                                Padding="4,2"
-                                                VerticalAlignment="Center"
-                                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                                CornerRadius="2"
-                                                Visibility="{x:Bind HasRenoDxWikiListing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <DataTemplate x:DataType="vm:SteamLibraryListItem">
+                                    <Grid Padding="4,6" ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Image
+                                            Grid.Column="0"
+                                            Width="32"
+                                            Height="32"
+                                            VerticalAlignment="Top"
+                                            automation:AutomationProperties.Name="{x:Bind Game.Name, Mode=OneWay}"
+                                            Source="{x:Bind Icon, Mode=OneWay}"
+                                            Stretch="Uniform" />
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <TextBlock
-                                                    FontSize="11"
-                                                    Opacity="0.9"
-                                                    Text="RenoDX" />
-                                            </Border>
+                                                    FontWeight="SemiBold"
+                                                    Text="{x:Bind Game.Name, Mode=OneWay}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                                <Border
+                                                    Padding="4,2"
+                                                    VerticalAlignment="Center"
+                                                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                                    CornerRadius="2"
+                                                    Visibility="{x:Bind Game.HasRenoDxWikiListing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Opacity="0.9"
+                                                        Text="RenoDX" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock
+                                                Opacity="0.6"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind Game.CommonInstallPath, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
-                                        <TextBlock
-                                            Opacity="0.6"
-                                            Style="{ThemeResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind CommonInstallPath}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
+                                    </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
@@ -283,34 +299,48 @@
                             DoubleTapped="EpicGameList_DoubleTapped"
                             IsItemClickEnabled="False"
                             ItemsSource="{x:Bind EpicVm.FilteredGames, Mode=OneWay}"
-                            SelectedItem="{x:Bind EpicVm.SelectedGame, Mode=TwoWay}"
+                            SelectedItem="{x:Bind EpicVm.SelectedListItem, Mode=TwoWay}"
                             SelectionMode="Single">
                             <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:EpicGameEntry" xmlns:models="using:DisplayCommanderInstaller.Core.Models">
-                                    <StackPanel Padding="4,6" Spacing="2">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock
-                                                FontWeight="SemiBold"
-                                                Text="{x:Bind Name}"
-                                                TextTrimming="CharacterEllipsis" />
-                                            <Border
-                                                Padding="4,2"
-                                                VerticalAlignment="Center"
-                                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                                CornerRadius="2"
-                                                Visibility="{x:Bind HasRenoDxWikiListing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <DataTemplate x:DataType="vm:EpicLibraryListItem">
+                                    <Grid Padding="4,6" ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Image
+                                            Grid.Column="0"
+                                            Width="32"
+                                            Height="32"
+                                            VerticalAlignment="Top"
+                                            automation:AutomationProperties.Name="{x:Bind Game.Name, Mode=OneWay}"
+                                            Source="{x:Bind Icon, Mode=OneWay}"
+                                            Stretch="Uniform" />
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <TextBlock
-                                                    FontSize="11"
-                                                    Opacity="0.9"
-                                                    Text="RenoDX" />
-                                            </Border>
+                                                    FontWeight="SemiBold"
+                                                    Text="{x:Bind Game.Name, Mode=OneWay}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                                <Border
+                                                    Padding="4,2"
+                                                    VerticalAlignment="Center"
+                                                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                                    CornerRadius="2"
+                                                    Visibility="{x:Bind Game.HasRenoDxWikiListing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Opacity="0.9"
+                                                        Text="RenoDX" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock
+                                                Opacity="0.6"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind Game.InstallLocation, Mode=OneWay}"
+                                                TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
-                                        <TextBlock
-                                            Opacity="0.6"
-                                            Style="{ThemeResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind InstallLocation}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
+                                    </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>

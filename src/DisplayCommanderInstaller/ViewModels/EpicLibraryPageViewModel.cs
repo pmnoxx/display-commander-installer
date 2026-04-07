@@ -1,16 +1,21 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Binary;
 using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
+using DisplayCommanderInstaller.Core.GameIcons;
 using DisplayCommanderInstaller.Core.Models;
 using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Core.Steam;
 using DisplayCommanderInstaller.Services;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.Storage;
+using Windows.Storage.Streams;
 
 namespace DisplayCommanderInstaller.ViewModels;
 
@@ -22,13 +27,19 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     private DispatcherQueueTimer? _gameRunPollTimer;
     private bool _suppressAddonBitnessPersist;
     private int _displayCommanderAddonPayloadModeIndex;
+    private CancellationTokenSource? _epicIconPrefetchCts;
+    private int _epicIconGeneration;
+    private bool _suppressListSelectionSync;
 
     public EpicLibraryPageViewModel(DispatcherQueue dispatcher)
     {
         _dispatcher = dispatcher;
     }
 
-    public ObservableCollection<EpicGameEntry> FilteredGames { get; } = new();
+    public ObservableCollection<EpicLibraryListItem> FilteredGames { get; } = new();
+
+    [ObservableProperty]
+    private EpicLibraryListItem? selectedListItem;
 
     [ObservableProperty]
     private EpicGameEntry? selectedGame;
@@ -143,8 +154,36 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         }
     }
 
+    partial void OnSelectedListItemChanged(EpicLibraryListItem? value)
+    {
+        if (_suppressListSelectionSync)
+            return;
+        _suppressListSelectionSync = true;
+        try
+        {
+            SelectedGame = value?.Game;
+        }
+        finally
+        {
+            _suppressListSelectionSync = false;
+        }
+    }
+
     partial void OnSelectedGameChanged(EpicGameEntry? value)
     {
+        if (!_suppressListSelectionSync)
+        {
+            _suppressListSelectionSync = true;
+            try
+            {
+                SelectedListItem = value is null ? null : FilteredGames.FirstOrDefault(r => ReferenceEquals(r.Game, value));
+            }
+            finally
+            {
+                _suppressListSelectionSync = false;
+            }
+        }
+
         RestartArchitectureDetection(value);
         OnPropertyChanged(nameof(SelectedGameTitle));
         OnPropertyChanged(nameof(SelectedGamePathDisplay));
@@ -333,6 +372,9 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     {
         StopGameRunPolling();
         _architectureDetectCts?.Cancel();
+        _epicIconPrefetchCts?.Cancel();
+        _epicIconPrefetchCts?.Dispose();
+        _epicIconPrefetchCts = null;
     }
 
     public void RequestGameProcessRefresh() => PollGameRunningState();
@@ -604,9 +646,114 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         foreach (var g in query
                      .OrderByDescending(g => lastPlayed.TryGetLastPlayedUtc(g.StableKey) ?? DateTimeOffset.MinValue)
                      .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
-            FilteredGames.Add(g);
+            FilteredGames.Add(new EpicLibraryListItem(g));
 
-        if (SelectedGame is not null && !FilteredGames.Contains(SelectedGame))
+        if (SelectedGame is not null && !FilteredGames.Any(r => ReferenceEquals(r.Game, SelectedGame)))
             SelectedGame = null;
+
+        _suppressListSelectionSync = true;
+        try
+        {
+            SelectedListItem = SelectedGame is null ? null : FilteredGames.FirstOrDefault(r => ReferenceEquals(r.Game, SelectedGame));
+        }
+        finally
+        {
+            _suppressListSelectionSync = false;
+        }
+
+        ScheduleEpicIconPrefetch();
+    }
+
+    private void ScheduleEpicIconPrefetch()
+    {
+        _epicIconPrefetchCts?.Cancel();
+        _epicIconPrefetchCts?.Dispose();
+        _epicIconPrefetchCts = new CancellationTokenSource();
+        var token = _epicIconPrefetchCts.Token;
+        _epicIconGeneration++;
+        var gen = _epicIconGeneration;
+        var rows = FilteredGames.ToList();
+        if (rows.Count == 0)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var opts = new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = token };
+                await Parallel.ForEachAsync(rows, opts, async (item, ct) =>
+                {
+                    await PrefetchEpicRowIconAsync(item, gen, ct).ConfigureAwait(false);
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch
+            {
+                // ignored
+            }
+        }, token);
+    }
+
+    private async Task PrefetchEpicRowIconAsync(EpicLibraryListItem item, int generation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (generation != _epicIconGeneration)
+                return;
+            string? exe;
+            try
+            {
+                exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(item.Game.InstallLocation, item.Game.Name, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                return;
+            }
+
+            var png = await AppServices.GameExecutableIcons.TryEnsureCachedIconAsync(
+                exe,
+                GameIconCacheNaming.EpicSubdirectory,
+                GameIconCacheNaming.EpicFileBase(item.Game.StableKey),
+                cancellationToken).ConfigureAwait(false);
+            if (png is null || generation != _epicIconGeneration)
+                return;
+
+            _dispatcher.TryEnqueue(() => _ = ApplyEpicRowIconFromCacheAsync(item, png, generation));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            // ignored
+        }
+    }
+
+    private async Task ApplyEpicRowIconFromCacheAsync(EpicLibraryListItem item, string pngPath, int generation)
+    {
+        if (generation != _epicIconGeneration)
+            return;
+        if (!FilteredGames.Contains(item))
+            return;
+        try
+        {
+            var file = await StorageFile.GetFileFromPathAsync(pngPath);
+            using IRandomAccessStream stream = await file.OpenReadAsync();
+            var bitmap = new BitmapImage();
+            await bitmap.SetSourceAsync(stream);
+            if (generation != _epicIconGeneration || !FilteredGames.Contains(item))
+                return;
+            item.Icon = bitmap;
+        }
+        catch
+        {
+            // ignored
+        }
     }
 }

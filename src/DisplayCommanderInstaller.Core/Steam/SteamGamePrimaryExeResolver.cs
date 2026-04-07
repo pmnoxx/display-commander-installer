@@ -34,6 +34,8 @@ public static class SteamGamePrimaryExeResolver
             }
         }
 
+        TryAddSiblingLauncherExeInParentFolder(root, candidates, cancellationToken);
+
         if (candidates.Count == 0)
             return null;
         if (candidates.Count == 1)
@@ -63,6 +65,48 @@ public static class SteamGamePrimaryExeResolver
             .ThenBy(p => p.Length)
             .ThenBy(p => p, StringComparer.OrdinalIgnoreCase)
             .First();
+    }
+
+    /// <summary>
+    /// Some Steam titles ship the main launcher as <c>steamapps/common/{name}.exe</c> while the library path is
+    /// <c>steamapps/common/{name}/</c> (sibling of the install folder, not inside it).
+    /// </summary>
+    private static void TryAddSiblingLauncherExeInParentFolder(string installRoot, List<string> candidates, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(installRoot))
+            return;
+        DirectoryInfo dir;
+        try
+        {
+            dir = new DirectoryInfo(installRoot);
+        }
+        catch
+        {
+            return;
+        }
+
+        var parent = dir.Parent;
+        if (parent is null)
+            return;
+        string sibling;
+        try
+        {
+            sibling = Path.Combine(parent.FullName, dir.Name + ".exe");
+        }
+        catch
+        {
+            return;
+        }
+
+        if (!File.Exists(sibling))
+            return;
+        var fileName = Path.GetFileName(sibling);
+        if (ShouldExclude(fileName))
+            return;
+        if (candidates.Exists(p => string.Equals(p, sibling, StringComparison.OrdinalIgnoreCase)))
+            return;
+        candidates.Add(sibling);
     }
 
     private static List<string> CollectCandidates(string directory, CancellationToken cancellationToken)

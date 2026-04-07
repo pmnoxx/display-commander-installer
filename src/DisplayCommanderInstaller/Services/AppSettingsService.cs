@@ -13,11 +13,12 @@ public sealed class AppSettingsService
 
     public static readonly string DefaultProxyDllFileName = DisplayCommanderManagedProxyDlls.DefaultFileName;
 
-    private static string StoreDirectory =>
+    /// <summary>Root folder under LocalAppData for settings, caches, and other persisted files.</summary>
+    public static string LocalStoreDirectory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DisplayCommanderInstaller");
 
-    private static string DownloadUrlFilePath => Path.Combine(StoreDirectory, "display-commander-download-url.txt");
-    private static string ProxyDllFilePath => Path.Combine(StoreDirectory, "display-commander-proxy-dll.txt");
+    private static string DownloadUrlFilePath => Path.Combine(LocalStoreDirectory, "display-commander-download-url.txt");
+    private static string ProxyDllFilePath => Path.Combine(LocalStoreDirectory, "display-commander-proxy-dll.txt");
 
     public string DisplayCommanderDownloadUrl
     {
@@ -37,7 +38,7 @@ public sealed class AppSettingsService
         }
         set
         {
-            Directory.CreateDirectory(StoreDirectory);
+            Directory.CreateDirectory(LocalStoreDirectory);
             File.WriteAllText(DownloadUrlFilePath, value.Trim());
         }
     }
@@ -75,7 +76,7 @@ public sealed class AppSettingsService
         {
             if (!DisplayCommanderManagedProxyDlls.TryNormalize(value, out var n))
                 throw new ArgumentException("Invalid proxy DLL name.", nameof(value));
-            Directory.CreateDirectory(StoreDirectory);
+            Directory.CreateDirectory(LocalStoreDirectory);
             File.WriteAllText(ProxyDllFilePath, n);
         }
     }
