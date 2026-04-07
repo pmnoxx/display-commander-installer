@@ -7,4 +7,8 @@
     <RootNamespace>DisplayCommanderInstaller.Core</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ValveKeyValue" Version="0.20.0.417" />
+  </ItemGroup>
+
 </Project>

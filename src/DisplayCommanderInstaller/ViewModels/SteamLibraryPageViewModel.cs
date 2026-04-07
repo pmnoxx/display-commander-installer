@@ -29,6 +29,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
     private CancellationTokenSource? _steamIconPrefetchCts;
     private int _steamIconGeneration;
     private bool _suppressListSelectionSync;
+    private IReadOnlyDictionary<uint, string?>? _steamLaunchExeRelativeByAppId;
 
     public SteamLibraryPageViewModel(DispatcherQueue dispatcher)
     {
@@ -410,9 +411,11 @@ public partial class SteamLibraryPageViewModel : ObservableObject
             return;
         IsBusy = true;
         StatusMessage = "Scanning Steam library…";
+        _steamLaunchExeRelativeByAppId = null;
         try
         {
             await AppServices.RenoDxCatalog.EnsureLoadedAsync();
+            IReadOnlyDictionary<uint, string?>? launchMap = null;
             await Task.Run(() =>
             {
                 var games = AppServices.Scanner.ScanInstalledGames();
@@ -427,12 +430,24 @@ public partial class SteamLibraryPageViewModel : ObservableObject
                     RenoDxSafeAddonUrl = renoDxUrl,
                     RenoDxUntrustedReferenceUrl = renoDxUntrustedRef,
                 }).ToList();
+
+                if (merged.Count > 0)
+                {
+                    var steamRoot = SteamInstallLocator.TryGetSteamInstallPath();
+                    if (!string.IsNullOrEmpty(steamRoot))
+                    {
+                        var wanted = merged.Select(g => g.AppId).ToHashSet();
+                        launchMap = SteamAppInfoLaunchLoader.TryLoadExecutablePathsRelative(steamRoot, wanted);
+                    }
+                }
+
                 lock (_all)
                 {
                     _all.Clear();
                     _all.AddRange(merged);
                 }
             });
+            _steamLaunchExeRelativeByAppId = launchMap;
             ApplyFilter();
             StatusMessage = $"Found {_all.Count} installed Steam games.";
         }
@@ -483,7 +498,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
             try
             {
                 token.ThrowIfCancellationRequested();
-                var exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(game, token);
+                var exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(game, _steamLaunchExeRelativeByAppId, token);
                 if (exe is null)
                 {
                     PostArchitectureResult(game, token, null, GameExecutableBitness.Unknown, "Could not detect — no suitable EXE in game folder.");
@@ -699,7 +714,7 @@ public partial class SteamLibraryPageViewModel : ObservableObject
             string? exe;
             try
             {
-                exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(item.Game, cancellationToken);
+                exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(item.Game, _steamLaunchExeRelativeByAppId, cancellationToken);
             }
             catch (OperationCanceledException)
             {

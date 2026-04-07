@@ -9,9 +9,37 @@ namespace DisplayCommanderInstaller.Core.Steam;
 public static class SteamGamePrimaryExeResolver
 {
     /// <summary>Returns absolute path to chosen exe, or null if none found.</summary>
-    public static string? TryResolvePrimaryExe(SteamGameEntry game, CancellationToken cancellationToken = default)
+    public static string? TryResolvePrimaryExe(SteamGameEntry game, CancellationToken cancellationToken = default) =>
+        TryResolvePrimaryExe(game, steamLaunchExecutableRelativeToInstallDir: null, cancellationToken);
+
+    /// <summary>
+    /// Like <see cref="TryResolvePrimaryExe(SteamGameEntry, CancellationToken)"/> but prefers
+    /// <paramref name="steamLaunchExecutableRelativeToInstallDir"/> from Steam <c>appinfo.vdf</c> when present and the file exists.
+    /// </summary>
+    public static string? TryResolvePrimaryExe(
+        SteamGameEntry game,
+        IReadOnlyDictionary<uint, string?>? steamLaunchExecutableRelativeToInstallDir,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(game);
+        if (steamLaunchExecutableRelativeToInstallDir is not null
+            && steamLaunchExecutableRelativeToInstallDir.TryGetValue(game.AppId, out var rel)
+            && !string.IsNullOrWhiteSpace(rel))
+        {
+            string combined;
+            try
+            {
+                combined = Path.GetFullPath(Path.Combine(game.CommonInstallPath, rel));
+            }
+            catch
+            {
+                combined = "";
+            }
+
+            if (File.Exists(combined))
+                return combined;
+        }
+
         return TryResolvePrimaryExe(game.CommonInstallPath, game.Name, cancellationToken);
     }
 

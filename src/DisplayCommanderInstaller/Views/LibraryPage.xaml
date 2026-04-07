@@ -91,7 +91,7 @@
                                             automation:AutomationProperties.Name="{x:Bind Game.Name, Mode=OneWay}"
                                             Source="{x:Bind Icon, Mode=OneWay}"
                                             Stretch="Uniform" />
-                                        <StackPanel Grid.Column="1" Spacing="2">
+                                        <StackPanel Grid.Column="1" Spacing="0">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <TextBlock
                                                     FontWeight="SemiBold"
@@ -109,11 +109,6 @@
                                                         Text="RenoDX" />
                                                 </Border>
                                             </StackPanel>
-                                            <TextBlock
-                                                Opacity="0.6"
-                                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind Game.CommonInstallPath, Mode=OneWay}"
-                                                TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
                                     </Grid>
                                 </DataTemplate>
@@ -316,7 +311,7 @@
                                             automation:AutomationProperties.Name="{x:Bind Game.Name, Mode=OneWay}"
                                             Source="{x:Bind Icon, Mode=OneWay}"
                                             Stretch="Uniform" />
-                                        <StackPanel Grid.Column="1" Spacing="2">
+                                        <StackPanel Grid.Column="1" Spacing="0">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <TextBlock
                                                     FontWeight="SemiBold"
@@ -334,11 +329,6 @@
                                                         Text="RenoDX" />
                                                 </Border>
                                             </StackPanel>
-                                            <TextBlock
-                                                Opacity="0.6"
-                                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind Game.InstallLocation, Mode=OneWay}"
-                                                TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
                                     </Grid>
                                 </DataTemplate>
