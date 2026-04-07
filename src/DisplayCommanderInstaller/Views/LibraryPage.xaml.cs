@@ -3,7 +3,6 @@ using DisplayCommanderInstaller.Core;
 using DisplayCommanderInstaller.Core.Epic;
 using DisplayCommanderInstaller.Core.GameFolder;
 using DisplayCommanderInstaller.Core.Models;
-using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Services;
 using DisplayCommanderInstaller.ViewModels;
 using Microsoft.UI.Dispatching;
@@ -15,106 +14,72 @@ namespace DisplayCommanderInstaller.Views;
 
 public sealed partial class LibraryPage : Page
 {
-    public SteamLibraryPageViewModel SteamVm { get; }
-    public EpicLibraryPageViewModel EpicVm { get; }
+    public UnifiedLibraryPageViewModel Vm { get; }
 
     public LibraryPage()
     {
         InitializeComponent();
         var dq = DispatcherQueue.GetForCurrentThread()!;
-        SteamVm = new SteamLibraryPageViewModel(dq);
-        EpicVm = new EpicLibraryPageViewModel(dq);
+        Vm = new UnifiedLibraryPageViewModel(dq);
         Loaded += async (_, _) =>
         {
             await AppServices.RenoDxCatalog.EnsureLoadedAsync();
-            await SteamVm.RefreshCommand.ExecuteAsync(CancellationToken.None);
-            await EpicVm.RefreshCommand.ExecuteAsync(CancellationToken.None);
+            await Vm.RefreshCommand.ExecuteAsync(CancellationToken.None);
         };
         Unloaded += (_, _) =>
         {
-            SteamVm.OnPageUnloaded();
-            EpicVm.OnPageUnloaded();
+            Vm.OnPageUnloaded();
         };
     }
-
-    private bool IsSteamTab => ReferenceEquals(LibraryTabs.SelectedItem, SteamLibraryTabItem);
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        SteamVm.RefreshWinMmInstallStatus();
-        EpicVm.RefreshWinMmInstallStatus();
+        Vm.ReloadCustomGamesFromStore();
+        Vm.RefreshWinMmInstallStatus();
     }
 
-    private IProgress<string> CreateUiProgress(bool steamTab)
+    private IProgress<string> CreateUiProgress()
     {
         return new Progress<string>(m =>
         {
             DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
             {
-                var tb = steamTab ? SteamActionStatus : EpicActionStatus;
-                tb.Text = m;
-                tb.Visibility = Visibility.Visible;
+                ActionStatus.Text = m;
+                ActionStatus.Visibility = Visibility.Visible;
             });
         });
     }
 
     private async void Install_Click(object sender, RoutedEventArgs e)
     {
-        var steamTab = IsSteamTab;
-        string? installRoot;
-        string? resolvedExe;
-        if (steamTab)
+        if (!Vm.HasSelectedGame)
+            return;
+        if (Vm.IsResolvingPrimaryExecutable)
         {
-            if (SteamVm.SelectedGame is null)
-                return;
-            if (SteamVm.IsResolvingPrimaryExecutable)
+            await new ContentDialog
             {
-                await new ContentDialog
-                {
-                    Title = "Detecting executable",
-                    Content = "Wait until the selected game’s executable path is resolved, then try again.",
-                    CloseButtonText = "OK",
-                    XamlRoot = XamlRoot!,
-                }.ShowAsync();
-                return;
-            }
-
-            installRoot = SteamVm.SelectedGame.CommonInstallPath;
-            resolvedExe = SteamVm.SelectedGameExecutablePath;
+                Title = "Detecting executable",
+                Content = "Wait until the selected game’s executable path is resolved, then try again.",
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot!,
+            }.ShowAsync();
+            return;
         }
-        else
-        {
-            if (EpicVm.SelectedGame is null)
-                return;
-            if (EpicVm.IsResolvingPrimaryExecutable)
-            {
-                await new ContentDialog
-                {
-                    Title = "Detecting executable",
-                    Content = "Wait until the selected game’s executable path is resolved, then try again.",
-                    CloseButtonText = "OK",
-                    XamlRoot = XamlRoot!,
-                }.ShowAsync();
-                return;
-            }
 
-            installRoot = EpicVm.SelectedGame.InstallLocation;
-            resolvedExe = EpicVm.SelectedGameExecutablePath;
-        }
+        var installRoot = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.CommonInstallPath
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.InstallLocation
+            : Vm.SelectedCustomGame?.InstallLocation;
+        var resolvedExe = Vm.SelectedGameExecutablePath;
 
         if (string.IsNullOrEmpty(installRoot))
             return;
 
         var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(resolvedExe, installRoot);
 
-        var detectedBitness = steamTab ? SteamVm.SelectedGameExecutableBitness : EpicVm.SelectedGameExecutableBitness;
-        var addonMode = (DisplayCommanderAddonPayloadMode)(steamTab
-            ? SteamVm.DisplayCommanderAddonPayloadModeIndex
-            : EpicVm.DisplayCommanderAddonPayloadModeIndex);
-        var effectiveBitness = steamTab
-            ? SteamVm.EffectiveDisplayCommanderInstallBitness
-            : EpicVm.EffectiveDisplayCommanderInstallBitness;
+        var detectedBitness = Vm.SelectedGameExecutableBitness;
+        var addonMode = (DisplayCommanderAddonPayloadMode)Vm.DisplayCommanderAddonPayloadModeIndex;
+        var effectiveBitness = Vm.EffectiveDisplayCommanderInstallBitness;
         var install = AppServices.Install;
 
         if (detectedBitness == GameExecutableBitness.Unknown && addonMode == DisplayCommanderAddonPayloadMode.Automatic)
@@ -158,47 +123,33 @@ public sealed partial class LibraryPage : Page
 
         try
         {
-            var status = steamTab ? SteamActionStatus : EpicActionStatus;
-            status.Visibility = Visibility.Visible;
-            status.Text = "Working…";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Working…";
             await install.DownloadAndInstallAsync(
                 gameDir,
                 url,
                 proxy,
                 allowForeign,
-                CreateUiProgress(steamTab),
+                CreateUiProgress(),
                 CancellationToken.None);
         }
         catch (Exception ex)
         {
-            var status = steamTab ? SteamActionStatus : EpicActionStatus;
-            status.Visibility = Visibility.Visible;
-            status.Text = "Install failed: " + ex.Message;
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Install failed: " + ex.Message;
         }
         finally
         {
-            if (steamTab)
-                SteamVm.RefreshWinMmInstallStatus();
-            else
-                EpicVm.RefreshWinMmInstallStatus();
+            Vm.RefreshWinMmInstallStatus();
         }
     }
 
     private async void Remove_Click(object sender, RoutedEventArgs e)
     {
-        var steamTab = IsSteamTab;
-        string? installRoot;
-        string? resolvedExe;
-        if (steamTab)
-        {
-            installRoot = SteamVm.SelectedGame?.CommonInstallPath;
-            resolvedExe = SteamVm.SelectedGameExecutablePath;
-        }
-        else
-        {
-            installRoot = EpicVm.SelectedGame?.InstallLocation;
-            resolvedExe = EpicVm.SelectedGameExecutablePath;
-        }
+        var installRoot = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.CommonInstallPath
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.InstallLocation
+            : Vm.SelectedCustomGame?.InstallLocation;
+        var resolvedExe = Vm.SelectedGameExecutablePath;
 
         if (string.IsNullOrEmpty(installRoot))
             return;
@@ -224,13 +175,9 @@ public sealed partial class LibraryPage : Page
 
             if (last is not null)
                 throw last;
-            var status = steamTab ? SteamActionStatus : EpicActionStatus;
-            status.Visibility = Visibility.Visible;
-            status.Text = "Removed Display Commander proxy DLL and installer marker.";
-            if (steamTab)
-                SteamVm.RefreshWinMmInstallStatus();
-            else
-                EpicVm.RefreshWinMmInstallStatus();
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Removed Display Commander proxy DLL and installer marker.";
+            Vm.RefreshWinMmInstallStatus();
         }
         catch (Exception ex)
         {
@@ -245,27 +192,11 @@ public sealed partial class LibraryPage : Page
         }
     }
 
-    private void OpenRenoDxModsWiki_Click(object sender, RoutedEventArgs e)
-    {
-        _ = global::Windows.System.Launcher.LaunchUriAsync(new Uri(RenoDxModCatalogService.WikiModsPageUrl));
-    }
-
-    private void OpenSelectedUntrustedRenoDxUrl_Click(object sender, RoutedEventArgs e)
-    {
-        var url = IsSteamTab
-            ? SteamVm.SelectedGame?.RenoDxUntrustedReferenceUrl
-            : EpicVm.SelectedGame?.RenoDxUntrustedReferenceUrl;
-        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return;
-        _ = global::Windows.System.Launcher.LaunchUriAsync(uri);
-    }
-
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {
-        var steamTab = IsSteamTab;
-        var path = steamTab
-            ? SteamVm.SelectedGame?.CommonInstallPath
-            : EpicVm.SelectedGame?.InstallLocation;
+        var path = Vm.IsSteamSelected ? Vm.SelectedSteamGame?.CommonInstallPath
+            : Vm.IsEpicSelected ? Vm.SelectedEpicGame?.InstallLocation
+            : Vm.SelectedCustomGame?.InstallLocation;
         if (string.IsNullOrEmpty(path))
             return;
 
@@ -280,18 +211,17 @@ public sealed partial class LibraryPage : Page
         }
         catch
         {
-            var status = steamTab ? SteamActionStatus : EpicActionStatus;
-            status.Visibility = Visibility.Visible;
-            status.Text = "Could not open folder.";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not open folder.";
         }
     }
 
     private void OpenSteamStore_Click(object sender, RoutedEventArgs e)
     {
-        if (SteamVm.SelectedGame is null)
+        if (Vm.SelectedSteamGame is null)
             return;
 
-        var appId = SteamVm.SelectedGame.AppId;
+        var appId = Vm.SelectedSteamGame.AppId;
         try
         {
             Process.Start(new ProcessStartInfo
@@ -302,19 +232,19 @@ public sealed partial class LibraryPage : Page
         }
         catch
         {
-            SteamActionStatus.Visibility = Visibility.Visible;
-            SteamActionStatus.Text = "Could not open Steam. Is it installed?";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not open Steam. Is it installed?";
         }
     }
 
     private void OpenEpicStore_Click(object sender, RoutedEventArgs e)
     {
-        if (EpicVm.SelectedGame is null)
+        if (Vm.SelectedEpicGame is null)
             return;
 
         try
         {
-            var url = EpicGameLauncherLinks.GetStoreSearchUrl(EpicVm.SelectedGame.Name);
+            var url = EpicGameLauncherLinks.GetStoreSearchUrl(Vm.SelectedEpicGame.Name);
             Process.Start(new ProcessStartInfo
             {
                 FileName = url,
@@ -323,30 +253,30 @@ public sealed partial class LibraryPage : Page
         }
         catch
         {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "Could not open browser.";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not open browser.";
         }
     }
 
-    private void ToggleFavorite_Click(object sender, RoutedEventArgs e) => SteamVm.ToggleSelectedFavorite();
-
-    private void ToggleSteamHidden_Click(object sender, RoutedEventArgs e) => SteamVm.ToggleSelectedHidden();
-
-    private void ToggleEpicFavorite_Click(object sender, RoutedEventArgs e) => EpicVm.ToggleSelectedFavorite();
-
-    private void ToggleEpicHidden_Click(object sender, RoutedEventArgs e) => EpicVm.ToggleSelectedHidden();
+    private void ToggleFavorite_Click(object sender, RoutedEventArgs e) => Vm.ToggleSelectedFavorite();
+    private void ToggleHidden_Click(object sender, RoutedEventArgs e) => Vm.ToggleSelectedHidden();
 
     private void StartGame_Click(object sender, RoutedEventArgs e)
     {
-        StartSelectedSteamGame();
+        if (Vm.IsSteamSelected)
+            StartSelectedSteamGame();
+        else if (Vm.IsEpicSelected)
+            StartSelectedEpicGame();
+        else
+            StartCustomGame();
     }
 
     private void StartSelectedSteamGame()
     {
-        if (SteamVm.SelectedGame is null)
+        if (Vm.SelectedSteamGame is null)
             return;
 
-        var appId = SteamVm.SelectedGame.AppId;
+        var appId = Vm.SelectedSteamGame.AppId;
         try
         {
             Process.Start(new ProcessStartInfo
@@ -355,31 +285,26 @@ public sealed partial class LibraryPage : Page
                 UseShellExecute = true,
             });
             AppServices.SteamLastPlayed.RecordPlayed(appId);
-            SteamVm.RefreshFilteredGameOrder();
+            Vm.RefreshFilteredGameOrder();
             ScheduleSteamProcessStatusRefresh();
         }
         catch
         {
-            SteamActionStatus.Visibility = Visibility.Visible;
-            SteamActionStatus.Text = "Could not start game. Is Steam installed?";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not start game. Is Steam installed?";
         }
-    }
-
-    private void StartEpicGame_Click(object sender, RoutedEventArgs e)
-    {
-        StartSelectedEpicGame();
     }
 
     private void StartSelectedEpicGame()
     {
-        if (EpicVm.SelectedGame is null)
+        if (Vm.SelectedEpicGame is null)
             return;
 
-        var uri = EpicGameLauncherLinks.TryGetLaunchUri(EpicVm.SelectedGame);
+        var uri = EpicGameLauncherLinks.TryGetLaunchUri(Vm.SelectedEpicGame);
         if (uri is null)
         {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "Manifest has no Epic launch info (AppName / catalog ids).";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Manifest has no Epic launch info (AppName / catalog ids).";
             return;
         }
 
@@ -390,45 +315,73 @@ public sealed partial class LibraryPage : Page
                 FileName = uri,
                 UseShellExecute = true,
             });
-            AppServices.EpicLastPlayed.RecordPlayed(EpicVm.SelectedGame.StableKey);
-            EpicVm.RefreshFilteredGameOrder();
+            AppServices.EpicLastPlayed.RecordPlayed(Vm.SelectedEpicGame.StableKey);
+            Vm.RefreshFilteredGameOrder();
             ScheduleEpicProcessStatusRefresh();
         }
         catch
         {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "Could not start game. Is the Epic Games Launcher installed?";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not start game. Is the Epic Games Launcher installed?";
         }
     }
 
-    private void SteamGameList_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    private void StartCustomGame()
     {
-        StartSelectedSteamGame();
+        var game = Vm.SelectedCustomGame;
+        if (game is null || string.IsNullOrWhiteSpace(game.ExecutablePath))
+            return;
+
+        var exe = game.ExecutablePath;
+        if (!File.Exists(exe))
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Custom executable file does not exist.";
+            return;
+        }
+
+        var workDir = Path.GetDirectoryName(exe);
+        if (string.IsNullOrWhiteSpace(workDir))
+            workDir = game.InstallLocation;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = exe,
+                WorkingDirectory = workDir,
+                UseShellExecute = true,
+            });
+            Vm.RecordCustomPlayed();
+            Vm.RefreshFilteredGameOrder();
+        }
+        catch (Exception ex)
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not start custom game: " + ex.Message;
+        }
     }
 
-    private void EpicGameList_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+    private void GameList_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
     {
-        StartSelectedEpicGame();
+        StartGame_Click(sender, e);
     }
 
     private void StartViaExe_Click(object sender, RoutedEventArgs e)
     {
-        if (SteamVm.SelectedGame is null)
-            return;
-
-        var exe = SteamVm.SelectedGameExecutablePath;
+        var exe = Vm.SelectedGameExecutablePath;
         if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
         {
-            SteamActionStatus.Visibility = Visibility.Visible;
-            SteamActionStatus.Text = "No resolved game executable path.";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "No resolved game executable path.";
             return;
         }
 
         var workDir = Path.GetDirectoryName(exe);
         if (string.IsNullOrEmpty(workDir))
         {
-            SteamActionStatus.Visibility = Visibility.Visible;
-            SteamActionStatus.Text = "Could not determine the executable folder.";
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not determine the executable folder.";
             return;
         }
 
@@ -440,54 +393,27 @@ public sealed partial class LibraryPage : Page
                 WorkingDirectory = workDir,
                 UseShellExecute = true,
             });
-            AppServices.SteamLastPlayed.RecordPlayed(SteamVm.SelectedGame.AppId);
-            SteamVm.RefreshFilteredGameOrder();
-            ScheduleSteamProcessStatusRefresh();
-        }
-        catch (Exception ex)
-        {
-            SteamActionStatus.Visibility = Visibility.Visible;
-            SteamActionStatus.Text = "Could not start executable: " + ex.Message;
-        }
-    }
-
-    private void StartEpicViaExe_Click(object sender, RoutedEventArgs e)
-    {
-        if (EpicVm.SelectedGame is null)
-            return;
-
-        var exe = EpicVm.SelectedGameExecutablePath;
-        if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
-        {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "No resolved game executable path.";
-            return;
-        }
-
-        var workDir = Path.GetDirectoryName(exe);
-        if (string.IsNullOrEmpty(workDir))
-        {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "Could not determine the executable folder.";
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo
+            if (Vm.IsSteamSelected && Vm.SelectedSteamGame is not null)
             {
-                FileName = exe,
-                WorkingDirectory = workDir,
-                UseShellExecute = true,
-            });
-            AppServices.EpicLastPlayed.RecordPlayed(EpicVm.SelectedGame.StableKey);
-            EpicVm.RefreshFilteredGameOrder();
-            ScheduleEpicProcessStatusRefresh();
+                AppServices.SteamLastPlayed.RecordPlayed(Vm.SelectedSteamGame.AppId);
+                ScheduleSteamProcessStatusRefresh();
+            }
+            else if (Vm.IsEpicSelected && Vm.SelectedEpicGame is not null)
+            {
+                AppServices.EpicLastPlayed.RecordPlayed(Vm.SelectedEpicGame.StableKey);
+                ScheduleEpicProcessStatusRefresh();
+            }
+            else
+            {
+                Vm.RecordCustomPlayed();
+            }
+
+            Vm.RefreshFilteredGameOrder();
         }
         catch (Exception ex)
         {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "Could not start executable: " + ex.Message;
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not start executable: " + ex.Message;
         }
     }
 
@@ -496,7 +422,7 @@ public sealed partial class LibraryPage : Page
         try
         {
             await Task.Delay(1500);
-            SteamVm.RequestGameProcessRefresh();
+            Vm.RequestGameProcessRefresh();
         }
         catch
         {
@@ -509,7 +435,7 @@ public sealed partial class LibraryPage : Page
         try
         {
             await Task.Delay(1500);
-            EpicVm.RequestGameProcessRefresh();
+            Vm.RequestGameProcessRefresh();
         }
         catch
         {
@@ -519,181 +445,25 @@ public sealed partial class LibraryPage : Page
 
     private void StopGameProcess_Click(object sender, RoutedEventArgs e)
     {
-        SteamVm.StopSelectedGameProcess();
+        Vm.StopSelectedGameProcess();
     }
 
     private void KillGameProcess_Click(object sender, RoutedEventArgs e)
     {
-        SteamVm.KillSelectedGameProcess();
+        Vm.KillSelectedGameProcess();
     }
 
-    private void StopEpicGameProcess_Click(object sender, RoutedEventArgs e)
+    private void EditCustomGame_Click(object sender, RoutedEventArgs e)
     {
-        EpicVm.StopSelectedGameProcess();
+        if (Vm.SelectedCustomGame is null)
+            return;
+        Frame.Navigate(typeof(AddCustomGamePage), Vm.SelectedCustomGame.Id);
     }
 
-    private void KillEpicGameProcess_Click(object sender, RoutedEventArgs e)
+    private void RemoveCustomGame_Click(object sender, RoutedEventArgs e)
     {
-        EpicVm.KillSelectedGameProcess();
-    }
-
-    private async void InstallRenoDxAddon_Click(object sender, RoutedEventArgs e)
-    {
-        var game = SteamVm.SelectedGame;
-        var url = game?.RenoDxSafeAddonUrl;
-        if (game is null || string.IsNullOrEmpty(url))
-            return;
-        var root = game.CommonInstallPath;
-        if (string.IsNullOrEmpty(root))
-            return;
-        if (SteamVm.IsResolvingPrimaryExecutable)
-        {
-            await new ContentDialog
-            {
-                Title = "Detecting executable",
-                Content = "Wait until the selected game’s executable path is resolved, then try again.",
-                CloseButtonText = "OK",
-                XamlRoot = XamlRoot!,
-            }.ShowAsync();
-            return;
-        }
-
-        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(SteamVm.SelectedGameExecutablePath, root);
-
-        try
-        {
-            SteamActionStatus.Visibility = Visibility.Visible;
-            SteamActionStatus.Text = "Working…";
-            await AppServices.RenoDxAddonDownload.DownloadOrUpdateAsync(
-                gameDir,
-                url,
-                CreateUiProgress(steamTab: true),
-                CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            SteamActionStatus.Visibility = Visibility.Visible;
-            SteamActionStatus.Text = "RenoDX addon download failed: " + ex.Message;
-        }
-        finally
-        {
-            SteamVm.RefreshAddonFilesDisplay();
-        }
-    }
-
-    private async void InstallEpicRenoDxAddon_Click(object sender, RoutedEventArgs e)
-    {
-        var game = EpicVm.SelectedGame;
-        var url = game?.RenoDxSafeAddonUrl;
-        if (game is null || string.IsNullOrEmpty(url))
-            return;
-        var root = game.InstallLocation;
-        if (string.IsNullOrEmpty(root))
-            return;
-        if (EpicVm.IsResolvingPrimaryExecutable)
-        {
-            await new ContentDialog
-            {
-                Title = "Detecting executable",
-                Content = "Wait until the selected game’s executable path is resolved, then try again.",
-                CloseButtonText = "OK",
-                XamlRoot = XamlRoot!,
-            }.ShowAsync();
-            return;
-        }
-
-        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(EpicVm.SelectedGameExecutablePath, root);
-
-        try
-        {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "Working…";
-            await AppServices.RenoDxAddonDownload.DownloadOrUpdateAsync(
-                gameDir,
-                url,
-                CreateUiProgress(steamTab: false),
-                CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            EpicActionStatus.Visibility = Visibility.Visible;
-            EpicActionStatus.Text = "RenoDX addon download failed: " + ex.Message;
-        }
-        finally
-        {
-            EpicVm.RefreshAddonFilesDisplay();
-        }
-    }
-
-    private async void UninstallRenoDxAddon_Click(object sender, RoutedEventArgs e)
-    {
-        var game = SteamVm.SelectedGame;
-        var url = game?.RenoDxSafeAddonUrl;
-        if (game is null || string.IsNullOrEmpty(url))
-            return;
-        var root = game.CommonInstallPath;
-        if (string.IsNullOrEmpty(root))
-            return;
-        if (SteamVm.IsResolvingPrimaryExecutable)
-        {
-            await new ContentDialog
-            {
-                Title = "Detecting executable",
-                Content = "Wait until the selected game’s executable path is resolved, then try again.",
-                CloseButtonText = "OK",
-                XamlRoot = XamlRoot!,
-            }.ShowAsync();
-            return;
-        }
-
-        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(SteamVm.SelectedGameExecutablePath, root);
-        var outcome = RenoDxInstalledAddonRemoval.TryRemove(gameDir, url, out var msg);
-        SteamActionStatus.Visibility = Visibility.Visible;
-        SteamActionStatus.Text = outcome switch
-        {
-            RenoDxAddonRemoveOutcome.Removed => msg ?? "Removed RenoDX addon.",
-            RenoDxAddonRemoveOutcome.NotFound => msg ?? "RenoDX addon file not found.",
-            RenoDxAddonRemoveOutcome.InvalidUrl => msg ?? "Invalid RenoDX addon URL.",
-            RenoDxAddonRemoveOutcome.InvalidGameDirectory => msg ?? "Invalid game folder.",
-            RenoDxAddonRemoveOutcome.Failed => "Could not remove RenoDX addon: " + (msg ?? ""),
-            _ => msg ?? "",
-        };
-        SteamVm.RefreshAddonFilesDisplay();
-    }
-
-    private async void UninstallEpicRenoDxAddon_Click(object sender, RoutedEventArgs e)
-    {
-        var game = EpicVm.SelectedGame;
-        var url = game?.RenoDxSafeAddonUrl;
-        if (game is null || string.IsNullOrEmpty(url))
-            return;
-        var root = game.InstallLocation;
-        if (string.IsNullOrEmpty(root))
-            return;
-        if (EpicVm.IsResolvingPrimaryExecutable)
-        {
-            await new ContentDialog
-            {
-                Title = "Detecting executable",
-                Content = "Wait until the selected game’s executable path is resolved, then try again.",
-                CloseButtonText = "OK",
-                XamlRoot = XamlRoot!,
-            }.ShowAsync();
-            return;
-        }
-
-        var gameDir = GameInstallLayout.GetPayloadAndProxyDirectory(EpicVm.SelectedGameExecutablePath, root);
-        var outcome = RenoDxInstalledAddonRemoval.TryRemove(gameDir, url, out var msg);
-        EpicActionStatus.Visibility = Visibility.Visible;
-        EpicActionStatus.Text = outcome switch
-        {
-            RenoDxAddonRemoveOutcome.Removed => msg ?? "Removed RenoDX addon.",
-            RenoDxAddonRemoveOutcome.NotFound => msg ?? "RenoDX addon file not found.",
-            RenoDxAddonRemoveOutcome.InvalidUrl => msg ?? "Invalid RenoDX addon URL.",
-            RenoDxAddonRemoveOutcome.InvalidGameDirectory => msg ?? "Invalid game folder.",
-            RenoDxAddonRemoveOutcome.Failed => "Could not remove RenoDX addon: " + (msg ?? ""),
-            _ => msg ?? "",
-        };
-        EpicVm.RefreshAddonFilesDisplay();
+        Vm.RemoveSelectedCustomGame();
+        ActionStatus.Visibility = Visibility.Visible;
+        ActionStatus.Text = "Custom game removed.";
     }
 }

@@ -15,533 +15,148 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </Page.Resources>
     <Grid>
-        <controls:TabView
-            x:Name="LibraryTabs"
-            IsAddTabButtonVisible="False"
-            VerticalAlignment="Stretch">
-            <controls:TabView.TabItems>
-                <controls:TabViewItem
-                    x:Name="SteamLibraryTabItem"
-                    Header="Steam"
-                    IsClosable="False">
-                    <Grid Padding="16" RowSpacing="12" ColumnSpacing="12">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="280" />
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="2*" MinWidth="320" />
-                        </Grid.ColumnDefinitions>
+        <Grid Padding="16" RowSpacing="12" ColumnSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="280" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="2*" MinWidth="320" />
+            </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8">
-                            <Button Command="{x:Bind SteamVm.RefreshCommand}" Content="Refresh Steam library" />
-                            <ProgressRing Width="24" Height="24" IsActive="{x:Bind SteamVm.IsBusy, Mode=OneWay}" />
-                            <TextBlock VerticalAlignment="Center" Text="{x:Bind SteamVm.StatusMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                        </StackPanel>
+            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8">
+                <Button Command="{x:Bind Vm.RefreshCommand}" Content="Refresh library" />
+                <ProgressRing Width="24" Height="24" IsActive="{x:Bind Vm.IsBusy, Mode=OneWay}" />
+                <TextBlock VerticalAlignment="Center" Text="{x:Bind Vm.StatusMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+            </StackPanel>
 
-                        <Grid
-                            Grid.Row="1"
-                            Grid.Column="0"
-                            Grid.ColumnSpan="3"
-                            ColumnSpacing="12">
+            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox
+                    Grid.Column="0"
+                    PlaceholderText="Search by name, id, or path…"
+                    Text="{x:Bind Vm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <ComboBox Grid.Column="1" MinWidth="168" Header="Store" SelectedIndex="{x:Bind Vm.StoreFilterIndex, Mode=TwoWay}">
+                    <x:String>All stores</x:String>
+                    <x:String>steam</x:String>
+                    <x:String>epic</x:String>
+                    <x:String>custom</x:String>
+                </ComboBox>
+                <ComboBox Grid.Column="2" MinWidth="168" Header="Show" SelectedIndex="{x:Bind Vm.ListFilterIndex, Mode=TwoWay}">
+                    <x:String>All</x:String>
+                    <x:String>Favorites</x:String>
+                    <x:String>RenoDX</x:String>
+                    <x:String>Hidden</x:String>
+                </ComboBox>
+            </Grid>
+
+            <ListView
+                Grid.Row="2"
+                Grid.Column="0"
+                DoubleTapped="GameList_DoubleTapped"
+                ItemsSource="{x:Bind Vm.FilteredGames, Mode=OneWay}"
+                SelectedItem="{x:Bind Vm.SelectedListItem, Mode=TwoWay}"
+                SelectionMode="Single">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:UnifiedLibraryListItem">
+                        <Grid Padding="4,6" ColumnSpacing="10">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Grid.Column="0"
-                                PlaceholderText="Search by name, App ID, or path…"
-                                Text="{x:Bind SteamVm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <ComboBox
-                                Grid.Column="1"
-                                MinWidth="168"
-                                VerticalAlignment="Center"
-                                Header="Show"
-                                SelectedIndex="{x:Bind SteamVm.ListFilterIndex, Mode=TwoWay}">
-                                <x:String>All</x:String>
-                                <x:String>Favorites</x:String>
-                                <x:String>RenoDX</x:String>
-                                <x:String>Hidden</x:String>
-                            </ComboBox>
-                        </Grid>
-
-                        <ListView
-                            Grid.Row="2"
-                            Grid.Column="0"
-                            DoubleTapped="SteamGameList_DoubleTapped"
-                            IsItemClickEnabled="False"
-                            ItemsSource="{x:Bind SteamVm.FilteredGames, Mode=OneWay}"
-                            SelectedItem="{x:Bind SteamVm.SelectedListItem, Mode=TwoWay}"
-                            SelectionMode="Single">
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="vm:SteamLibraryListItem">
-                                    <Grid Padding="4,6" ColumnSpacing="10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Image
-                                            Grid.Column="0"
-                                            Width="32"
-                                            Height="32"
-                                            VerticalAlignment="Top"
-                                            automation:AutomationProperties.Name="{x:Bind Game.Name, Mode=OneWay}"
-                                            Source="{x:Bind Icon, Mode=OneWay}"
-                                            Stretch="Uniform" />
-                                        <StackPanel Grid.Column="1" Spacing="0">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock
-                                                    FontWeight="SemiBold"
-                                                    Text="{x:Bind Game.Name, Mode=OneWay}"
-                                                    TextTrimming="CharacterEllipsis" />
-                                                <Border
-                                                    Padding="4,2"
-                                                    VerticalAlignment="Center"
-                                                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                                    CornerRadius="2"
-                                                    Visibility="{x:Bind Game.HasRenoDxWikiListing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                    <TextBlock
-                                                        FontSize="11"
-                                                        Opacity="0.9"
-                                                        Text="RenoDX" />
-                                                </Border>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-
-                        <StackPanel
-                            Grid.Row="2"
-                            Grid.Column="2"
-                            Spacing="10"
-                            VerticalAlignment="Top"
-                            Visibility="{x:Bind SteamVm.HasSelectedGame, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Selected game" />
-                            <TextBlock Text="{x:Bind SteamVm.SelectedGameTitle, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.75"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind SteamVm.SelectedGamePathDisplay, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.72"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind SteamVm.SelectedGameAddonPayloadsDisplay, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.85"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind SteamVm.SelectedGameArchitectureDisplay, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.88"
-                                Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                Text="{x:Bind SteamVm.SelectedGameProcessStatusText, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <Border
-                                Padding="12"
-                                CornerRadius="4"
-                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
-                                BorderThickness="1"
-                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                Visibility="{x:Bind SteamVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Display Commander" />
-                                    <TextBlock
-                                        Opacity="0.9"
-                                        Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                        Text="{x:Bind SteamVm.WinMmInstallStatusText, Mode=OneWay}"
-                                        TextWrapping="WrapWholeWords" />
-                                    <StackPanel Spacing="4">
-                                        <TextBlock
-                                            Opacity="0.88"
-                                            Style="{ThemeResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind SteamVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
-                                            TextWrapping="WrapWholeWords" />
-                                        <RadioButtons
-                                            Header="Display Commander download"
-                                            MaxColumns="3"
-                                            SelectedIndex="{x:Bind SteamVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
-                                            <x:String>Auto (exe)</x:String>
-                                            <x:String>32-bit</x:String>
-                                            <x:String>64-bit</x:String>
-                                        </RadioButtons>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Button
-                                            Click="Install_Click"
-                                            Content="Install Display Commander"
-                                            IsEnabled="{x:Bind SteamVm.CanInstallDisplayCommander, Mode=OneWay}" />
-                                        <Button
-                                            Click="Remove_Click"
-                                            Content="Remove"
-                                            IsEnabled="{x:Bind SteamVm.CanRemoveDisplayCommander, Mode=OneWay}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                            <Border
-                                Padding="12"
-                                CornerRadius="4"
-                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
-                                BorderThickness="1"
-                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                Visibility="{x:Bind SteamVm.ShowRenoDxDetailSection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="RenoDX" />
-                                    <TextBlock
-                                        Opacity="0.85"
-                                        Style="{ThemeResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind SteamVm.RenoDxAddonVersionStatusText, Mode=OneWay}"
-                                        TextWrapping="WrapWholeWords"
-                                        Visibility="{x:Bind SteamVm.ShowRenoDxAddonVersionStatus, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    <StackPanel
-                                        Spacing="4"
-                                        Visibility="{x:Bind SteamVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <TextBlock
-                                            Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
-                                            Style="{ThemeResource CaptionTextBlockStyle}"
-                                            Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
-                                            TextWrapping="WrapWholeWords" />
-                                        <StackPanel
-                                            Spacing="2"
-                                            Visibility="{x:Bind SteamVm.ShowRenoDxUntrustedReferenceUrl, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                            <TextBlock
-                                                Opacity="0.8"
-                                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                                Text="Wiki reference URL (untrusted):"
-                                                TextWrapping="WrapWholeWords" />
-                                            <TextBlock
-                                                IsTextSelectionEnabled="True"
-                                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind SteamVm.RenoDxUntrustedReferenceUrl, Mode=OneWay}"
-                                                TextWrapping="WrapWholeWords" />
-                                            <HyperlinkButton
-                                                Padding="0"
-                                                Click="OpenSelectedUntrustedRenoDxUrl_Click"
-                                                Content="Open this URL" />
-                                        </StackPanel>
-                                        <HyperlinkButton
-                                            Padding="0"
-                                            Click="OpenRenoDxModsWiki_Click"
-                                            Content="Open RenoDX Mods wiki" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Button
-                                            Click="InstallRenoDxAddon_Click"
-                                            Content="{x:Bind SteamVm.RenoDxAddonInstallButtonLabel, Mode=OneWay}"
-                                            IsEnabled="{x:Bind SteamVm.CanInstallRenoDxAddon, Mode=OneWay}" />
-                                        <Button
-                                            Click="UninstallRenoDxAddon_Click"
-                                            Content="Remove RenoDX addon"
-                                            IsEnabled="{x:Bind SteamVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Click="OpenFolder_Click" Content="Open folder" />
-                                <Button
-                                    Click="OpenSteamStore_Click"
-                                    Content="Store in Steam"
-                                    IsEnabled="{x:Bind SteamVm.CanOpenSteamStore, Mode=OneWay}" />
-                                <Button
-                                    Click="ToggleFavorite_Click"
-                                    Content="{x:Bind SteamVm.FavoriteToggleButtonLabel, Mode=OneWay}"
-                                    IsEnabled="{x:Bind SteamVm.CanOpenSteamStore, Mode=OneWay}" />
-                                <Button
-                                    Click="ToggleSteamHidden_Click"
-                                    Content="{x:Bind SteamVm.HiddenToggleButtonLabel, Mode=OneWay}"
-                                    IsEnabled="{x:Bind SteamVm.CanOpenSteamStore, Mode=OneWay}" />
-                                <Button Click="StartGame_Click" Content="Start game" />
-                                <Button
-                                    Click="StartViaExe_Click"
-                                    Content="Start via exe"
-                                    IsEnabled="{x:Bind SteamVm.CanStartSelectedGameViaExe, Mode=OneWay}" />
-                                <Button
-                                    Click="StopGameProcess_Click"
-                                    Content="Stop"
-                                    IsEnabled="{x:Bind SteamVm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
-                                <Button
-                                    Click="KillGameProcess_Click"
-                                    Content="Kill"
-                                    IsEnabled="{x:Bind SteamVm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
-                            </StackPanel>
-                            <TextBlock
-                                x:Name="SteamActionStatus"
-                                Opacity="0.85"
-                                TextWrapping="WrapWholeWords"
-                                Visibility="Collapsed" />
-                        </StackPanel>
-                    </Grid>
-                </controls:TabViewItem>
-                <controls:TabViewItem
-                    x:Name="EpicLibraryTabItem"
-                    Header="Epic"
-                    IsClosable="False">
-                    <Grid Padding="16" RowSpacing="12" ColumnSpacing="12">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="280" />
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="2*" MinWidth="320" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8">
-                            <Button Command="{x:Bind EpicVm.RefreshCommand}" Content="Refresh Epic library" />
-                            <ProgressRing Width="24" Height="24" IsActive="{x:Bind EpicVm.IsBusy, Mode=OneWay}" />
-                            <TextBlock VerticalAlignment="Center" Text="{x:Bind EpicVm.StatusMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                        </StackPanel>
-
-                        <Grid
-                            Grid.Row="1"
-                            Grid.Column="0"
-                            Grid.ColumnSpan="3"
-                            ColumnSpacing="12">
-                            <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBox
+                            <Image
                                 Grid.Column="0"
-                                PlaceholderText="Search by name, catalog id, or path…"
-                                Text="{x:Bind EpicVm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <ComboBox
-                                Grid.Column="1"
-                                MinWidth="168"
-                                VerticalAlignment="Center"
-                                Header="Show"
-                                SelectedIndex="{x:Bind EpicVm.ListFilterIndex, Mode=TwoWay}">
-                                <x:String>All</x:String>
-                                <x:String>Favorites</x:String>
-                                <x:String>RenoDX</x:String>
-                                <x:String>Hidden</x:String>
-                            </ComboBox>
-                        </Grid>
-
-                        <ListView
-                            Grid.Row="2"
-                            Grid.Column="0"
-                            DoubleTapped="EpicGameList_DoubleTapped"
-                            IsItemClickEnabled="False"
-                            ItemsSource="{x:Bind EpicVm.FilteredGames, Mode=OneWay}"
-                            SelectedItem="{x:Bind EpicVm.SelectedListItem, Mode=TwoWay}"
-                            SelectionMode="Single">
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="vm:EpicLibraryListItem">
-                                    <Grid Padding="4,6" ColumnSpacing="10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Image
-                                            Grid.Column="0"
-                                            Width="32"
-                                            Height="32"
-                                            VerticalAlignment="Top"
-                                            automation:AutomationProperties.Name="{x:Bind Game.Name, Mode=OneWay}"
-                                            Source="{x:Bind Icon, Mode=OneWay}"
-                                            Stretch="Uniform" />
-                                        <StackPanel Grid.Column="1" Spacing="0">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock
-                                                    FontWeight="SemiBold"
-                                                    Text="{x:Bind Game.Name, Mode=OneWay}"
-                                                    TextTrimming="CharacterEllipsis" />
-                                                <Border
-                                                    Padding="4,2"
-                                                    VerticalAlignment="Center"
-                                                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                                    CornerRadius="2"
-                                                    Visibility="{x:Bind Game.HasRenoDxWikiListing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                    <TextBlock
-                                                        FontSize="11"
-                                                        Opacity="0.9"
-                                                        Text="RenoDX" />
-                                                </Border>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-
-                        <StackPanel
-                            Grid.Row="2"
-                            Grid.Column="2"
-                            Spacing="10"
-                            VerticalAlignment="Top"
-                            Visibility="{x:Bind EpicVm.HasSelectedGame, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Selected game" />
-                            <TextBlock Text="{x:Bind EpicVm.SelectedGameTitle, Mode=OneWay}" TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.75"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind EpicVm.SelectedGamePathDisplay, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.72"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind EpicVm.SelectedGameAddonPayloadsDisplay, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.85"
-                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                Text="{x:Bind EpicVm.SelectedGameArchitectureDisplay, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.88"
-                                Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                Text="{x:Bind EpicVm.SelectedGameProcessStatusText, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <Border
-                                Padding="12"
-                                CornerRadius="4"
-                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
-                                BorderThickness="1"
-                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                Visibility="{x:Bind EpicVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Display Commander" />
-                                    <TextBlock
-                                        Opacity="0.9"
-                                        Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                        Text="{x:Bind EpicVm.WinMmInstallStatusText, Mode=OneWay}"
-                                        TextWrapping="WrapWholeWords" />
-                                    <StackPanel Spacing="4">
-                                        <TextBlock
-                                            Opacity="0.88"
-                                            Style="{ThemeResource CaptionTextBlockStyle}"
-                                            Text="{x:Bind EpicVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
-                                            TextWrapping="WrapWholeWords" />
-                                        <RadioButtons
-                                            Header="Display Commander download"
-                                            MaxColumns="3"
-                                            SelectedIndex="{x:Bind EpicVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
-                                            <x:String>Auto (exe)</x:String>
-                                            <x:String>32-bit</x:String>
-                                            <x:String>64-bit</x:String>
-                                        </RadioButtons>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Button
-                                            Click="Install_Click"
-                                            Content="Install Display Commander"
-                                            IsEnabled="{x:Bind EpicVm.CanInstallDisplayCommander, Mode=OneWay}" />
-                                        <Button
-                                            Click="Remove_Click"
-                                            Content="Remove"
-                                            IsEnabled="{x:Bind EpicVm.CanRemoveDisplayCommander, Mode=OneWay}" />
-                                    </StackPanel>
+                                Width="32"
+                                Height="32"
+                                VerticalAlignment="Top"
+                                Source="{x:Bind Icon, Mode=OneWay}"
+                                Stretch="Uniform" />
+                            <StackPanel Grid.Column="1" Spacing="0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock FontWeight="SemiBold" Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Opacity="0.7" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind StoreKind, Mode=OneWay}" />
+                                    <Border
+                                        Padding="4,2"
+                                        VerticalAlignment="Center"
+                                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                        CornerRadius="2"
+                                        Visibility="{x:Bind HasRenoDxWikiListing, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock FontSize="11" Opacity="0.9" Text="RenoDX" />
+                                    </Border>
                                 </StackPanel>
-                            </Border>
-                            <Border
-                                Padding="12"
-                                CornerRadius="4"
-                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
-                                BorderThickness="1"
-                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                                Visibility="{x:Bind EpicVm.ShowRenoDxDetailSection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="RenoDX" />
-                                    <TextBlock
-                                        Opacity="0.85"
-                                        Style="{ThemeResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind EpicVm.RenoDxAddonVersionStatusText, Mode=OneWay}"
-                                        TextWrapping="WrapWholeWords"
-                                        Visibility="{x:Bind EpicVm.ShowRenoDxAddonVersionStatus, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    <StackPanel
-                                        Spacing="4"
-                                        Visibility="{x:Bind EpicVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <TextBlock
-                                            Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
-                                            Style="{ThemeResource CaptionTextBlockStyle}"
-                                            Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
-                                            TextWrapping="WrapWholeWords" />
-                                        <StackPanel
-                                            Spacing="2"
-                                            Visibility="{x:Bind EpicVm.ShowRenoDxUntrustedReferenceUrl, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                            <TextBlock
-                                                Opacity="0.8"
-                                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                                Text="Wiki reference URL (untrusted):"
-                                                TextWrapping="WrapWholeWords" />
-                                            <TextBlock
-                                                IsTextSelectionEnabled="True"
-                                                Style="{ThemeResource CaptionTextBlockStyle}"
-                                                Text="{x:Bind EpicVm.RenoDxUntrustedReferenceUrl, Mode=OneWay}"
-                                                TextWrapping="WrapWholeWords" />
-                                            <HyperlinkButton
-                                                Padding="0"
-                                                Click="OpenSelectedUntrustedRenoDxUrl_Click"
-                                                Content="Open this URL" />
-                                        </StackPanel>
-                                        <HyperlinkButton
-                                            Padding="0"
-                                            Click="OpenRenoDxModsWiki_Click"
-                                            Content="Open RenoDX Mods wiki" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Button
-                                            Click="InstallEpicRenoDxAddon_Click"
-                                            Content="{x:Bind EpicVm.RenoDxAddonInstallButtonLabel, Mode=OneWay}"
-                                            IsEnabled="{x:Bind EpicVm.CanInstallRenoDxAddon, Mode=OneWay}" />
-                                        <Button
-                                            Click="UninstallEpicRenoDxAddon_Click"
-                                            Content="Remove RenoDX addon"
-                                            IsEnabled="{x:Bind EpicVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Click="OpenFolder_Click" Content="Open folder" />
-                                <Button
-                                    Click="OpenEpicStore_Click"
-                                    Content="Search Epic Store"
-                                    IsEnabled="{x:Bind EpicVm.CanSearchEpicStore, Mode=OneWay}" />
-                                <Button
-                                    Click="ToggleEpicFavorite_Click"
-                                    Content="{x:Bind EpicVm.FavoriteToggleButtonLabel, Mode=OneWay}"
-                                    IsEnabled="{x:Bind EpicVm.CanSearchEpicStore, Mode=OneWay}" />
-                                <Button
-                                    Click="ToggleEpicHidden_Click"
-                                    Content="{x:Bind EpicVm.HiddenToggleButtonLabel, Mode=OneWay}"
-                                    IsEnabled="{x:Bind EpicVm.CanSearchEpicStore, Mode=OneWay}" />
-                                <Button
-                                    Click="StartEpicGame_Click"
-                                    Content="Start game"
-                                    IsEnabled="{x:Bind EpicVm.CanOpenEpicLauncher, Mode=OneWay}" />
-                                <Button
-                                    Click="StartEpicViaExe_Click"
-                                    Content="Start via exe"
-                                    IsEnabled="{x:Bind EpicVm.CanStartSelectedGameViaExe, Mode=OneWay}" />
-                                <Button
-                                    Click="StopEpicGameProcess_Click"
-                                    Content="Stop"
-                                    IsEnabled="{x:Bind EpicVm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
-                                <Button
-                                    Click="KillEpicGameProcess_Click"
-                                    Content="Kill"
-                                    IsEnabled="{x:Bind EpicVm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
                             </StackPanel>
-                            <TextBlock
-                                x:Name="EpicActionStatus"
-                                Opacity="0.85"
-                                TextWrapping="WrapWholeWords"
-                                Visibility="Collapsed" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <StackPanel
+                Grid.Row="2"
+                Grid.Column="2"
+                Spacing="10"
+                VerticalAlignment="Top"
+                Visibility="{x:Bind Vm.HasSelectedGame, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Selected game" />
+                <TextBlock Text="{x:Bind Vm.SelectedGameTitle, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Opacity="0.75" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGamePathDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Opacity="0.72" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGameAddonPayloadsDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Opacity="0.85" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGameArchitectureDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Opacity="0.88" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Vm.SelectedGameProcessStatusText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <Border
+                    Padding="12"
+                    CornerRadius="4"
+                    BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                    BorderThickness="1"
+                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                    Visibility="{x:Bind Vm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Display Commander" />
+                        <TextBlock Opacity="0.9" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Vm.WinMmInstallStatusText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        <TextBlock Opacity="0.88" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        <RadioButtons Header="Display Commander download" MaxColumns="3" SelectedIndex="{x:Bind Vm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
+                            <x:String>Auto (exe)</x:String>
+                            <x:String>32-bit</x:String>
+                            <x:String>64-bit</x:String>
+                        </RadioButtons>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Click="Install_Click" Content="Install Display Commander" IsEnabled="{x:Bind Vm.CanInstallDisplayCommander, Mode=OneWay}" />
+                            <Button Click="Remove_Click" Content="Remove" IsEnabled="{x:Bind Vm.CanRemoveDisplayCommander, Mode=OneWay}" />
                         </StackPanel>
-                    </Grid>
-                </controls:TabViewItem>
-            </controls:TabView.TabItems>
-        </controls:TabView>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Click="OpenFolder_Click" Content="Open folder" />
+                    <Button Click="OpenSteamStore_Click" Content="Store in Steam" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
+                    <Button Click="OpenEpicStore_Click" Content="Search Epic Store" IsEnabled="{x:Bind Vm.CanSearchEpicStore, Mode=OneWay}" />
+                    <Button Click="ToggleFavorite_Click" Content="{x:Bind Vm.FavoriteToggleButtonLabel, Mode=OneWay}" />
+                    <Button Click="ToggleHidden_Click" Content="{x:Bind Vm.HiddenToggleButtonLabel, Mode=OneWay}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Click="StartGame_Click" Content="Start game" />
+                    <Button Click="StartViaExe_Click" Content="Start via exe" IsEnabled="{x:Bind Vm.CanStartSelectedGameViaExe, Mode=OneWay}" />
+                    <Button Click="StopGameProcess_Click" Content="Stop" IsEnabled="{x:Bind Vm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
+                    <Button Click="KillGameProcess_Click" Content="Kill" IsEnabled="{x:Bind Vm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
+                </StackPanel>
+                <TextBlock x:Name="ActionStatus" Opacity="0.85" TextWrapping="WrapWholeWords" Visibility="Collapsed" />
+
+                <StackPanel
+                    Spacing="8"
+                    Visibility="{x:Bind Vm.IsCustomSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Opacity="0.85" Text="Custom games are added from the left menu (Add custom game). You can edit the selected entry or remove it here." TextWrapping="WrapWholeWords" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="EditCustomGame_Click" Content="Edit custom game…" />
+                        <Button Click="RemoveCustomGame_Click" Content="Remove from library" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Page>

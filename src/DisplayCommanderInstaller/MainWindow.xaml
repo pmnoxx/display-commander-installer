@@ -32,9 +32,14 @@
             PaneDisplayMode="Left"
             SelectionChanged="RootNav_SelectionChanged">
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="Steam library" Tag="library">
+                <NavigationViewItem Content="Library" Tag="library">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Library" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Add custom game" Tag="add-custom">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Add" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Settings" Tag="settings">

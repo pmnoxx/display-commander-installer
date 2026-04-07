@@ -31,7 +31,9 @@ public sealed class GameExecutableIconCache
     {
         if (string.IsNullOrWhiteSpace(exeFullPath))
             return null;
-        if (subdirectory != GameIconCacheNaming.SteamSubdirectory && subdirectory != GameIconCacheNaming.EpicSubdirectory)
+        if (subdirectory != GameIconCacheNaming.SteamSubdirectory
+            && subdirectory != GameIconCacheNaming.EpicSubdirectory
+            && subdirectory != GameIconCacheNaming.CustomSubdirectory)
             throw new ArgumentException("Invalid cache subdirectory.", nameof(subdirectory));
         if (string.IsNullOrEmpty(fileBase) || fileBase.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             throw new ArgumentException("Invalid file base name.", nameof(fileBase));

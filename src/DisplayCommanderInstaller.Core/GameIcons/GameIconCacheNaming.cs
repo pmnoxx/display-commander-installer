@@ -9,6 +9,7 @@ public static class GameIconCacheNaming
 {
     public const string SteamSubdirectory = "steam";
     public const string EpicSubdirectory = "epic";
+    public const string CustomSubdirectory = "custom";
     public const string PngExtension = ".png";
     public const string VersionExtension = ".ver";
 
@@ -20,6 +21,13 @@ public static class GameIconCacheNaming
     {
         ArgumentNullException.ThrowIfNull(stableKey);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(stableKey))).ToLowerInvariant();
+    }
+
+    /// <summary>Base file name (no extension) for a custom title under <see cref="CustomSubdirectory"/>.</summary>
+    public static string CustomFileBase(string customId)
+    {
+        ArgumentNullException.ThrowIfNull(customId);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(customId))).ToLowerInvariant();
     }
 
     public static string PngFileName(string fileBase) => fileBase + PngExtension;
