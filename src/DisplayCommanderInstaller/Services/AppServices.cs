@@ -12,8 +12,10 @@ public static class AppServices
     public static DisplayCommanderConfigMarkerService DisplayCommanderConfigMarker { get; } = new();
     public static SteamGameLastPlayedStore SteamLastPlayed { get; } = new();
     public static SteamGameFavoriteStore SteamFavorites { get; } = new();
+    public static SteamGameHiddenStore SteamHidden { get; } = new();
     public static EpicGameLastPlayedStore EpicLastPlayed { get; } = new();
     public static EpicGameFavoriteStore EpicFavorites { get; } = new();
+    public static EpicGameHiddenStore EpicHidden { get; } = new();
     public static RenoDxModCatalogService RenoDxCatalog { get; } = new();
     public static RenoDxAddonDownloadService RenoDxAddonDownload { get; } = new();
     public static DisplayCommanderAddonBitnessOverrideStore DisplayCommanderAddonBitnessOverrides { get; } = new();

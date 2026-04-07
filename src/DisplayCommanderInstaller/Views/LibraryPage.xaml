@@ -56,16 +56,17 @@
                                 Grid.Column="0"
                                 PlaceholderText="Search by name, App ID, or path…"
                                 Text="{x:Bind SteamVm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <RadioButtons
+                            <ComboBox
                                 Grid.Column="1"
+                                MinWidth="168"
                                 VerticalAlignment="Center"
                                 Header="Show"
-                                MaxColumns="3"
                                 SelectedIndex="{x:Bind SteamVm.ListFilterIndex, Mode=TwoWay}">
                                 <x:String>All</x:String>
                                 <x:String>Favorites</x:String>
                                 <x:String>RenoDX</x:String>
-                            </RadioButtons>
+                                <x:String>Hidden</x:String>
+                            </ComboBox>
                         </Grid>
 
                         <ListView
@@ -137,70 +138,102 @@
                                 Style="{ThemeResource CaptionTextBlockStyle}"
                                 Text="{x:Bind SteamVm.SelectedGameArchitectureDisplay, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
-                            <StackPanel
-                                Spacing="4"
-                                Visibility="{x:Bind SteamVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock
-                                    Opacity="0.88"
-                                    Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="{x:Bind SteamVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
-                                    TextWrapping="WrapWholeWords" />
-                                <RadioButtons
-                                    Header="Display Commander download"
-                                    MaxColumns="3"
-                                    SelectedIndex="{x:Bind SteamVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
-                                    <x:String>Auto (exe)</x:String>
-                                    <x:String>32-bit</x:String>
-                                    <x:String>64-bit</x:String>
-                                </RadioButtons>
-                            </StackPanel>
                             <TextBlock
                                 Opacity="0.88"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="{x:Bind SteamVm.SelectedGameProcessStatusText, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.9"
-                                Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                Text="{x:Bind SteamVm.WinMmInstallStatusText, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <StackPanel
-                                Spacing="4"
-                                Visibility="{x:Bind SteamVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock
-                                    Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
-                                    Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
-                                    TextWrapping="WrapWholeWords" />
-                                <StackPanel
-                                    Spacing="2"
-                                    Visibility="{x:Bind SteamVm.ShowRenoDxUntrustedReferenceUrl, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Border
+                                Padding="12"
+                                CornerRadius="4"
+                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                                BorderThickness="1"
+                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                Visibility="{x:Bind SteamVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Display Commander" />
                                     <TextBlock
-                                        Opacity="0.8"
-                                        Style="{ThemeResource CaptionTextBlockStyle}"
-                                        Text="Wiki reference URL (untrusted):"
+                                        Opacity="0.9"
+                                        Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                        Text="{x:Bind SteamVm.WinMmInstallStatusText, Mode=OneWay}"
                                         TextWrapping="WrapWholeWords" />
-                                    <TextBlock
-                                        IsTextSelectionEnabled="True"
-                                        Style="{ThemeResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind SteamVm.RenoDxUntrustedReferenceUrl, Mode=OneWay}"
-                                        TextWrapping="WrapWholeWords" />
-                                    <HyperlinkButton
-                                        Padding="0"
-                                        Click="OpenSelectedUntrustedRenoDxUrl_Click"
-                                        Content="Open this URL" />
+                                    <StackPanel Spacing="4">
+                                        <TextBlock
+                                            Opacity="0.88"
+                                            Style="{ThemeResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind SteamVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
+                                            TextWrapping="WrapWholeWords" />
+                                        <RadioButtons
+                                            Header="Display Commander download"
+                                            MaxColumns="3"
+                                            SelectedIndex="{x:Bind SteamVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
+                                            <x:String>Auto (exe)</x:String>
+                                            <x:String>32-bit</x:String>
+                                            <x:String>64-bit</x:String>
+                                        </RadioButtons>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button
+                                            Click="Install_Click"
+                                            Content="Install Display Commander"
+                                            IsEnabled="{x:Bind SteamVm.CanInstallDisplayCommander, Mode=OneWay}" />
+                                        <Button Click="Remove_Click" Content="Remove" />
+                                    </StackPanel>
                                 </StackPanel>
-                                <HyperlinkButton
-                                    Padding="0"
-                                    Click="OpenRenoDxModsWiki_Click"
-                                    Content="Open RenoDX Mods wiki" />
-                            </StackPanel>
+                            </Border>
+                            <Border
+                                Padding="12"
+                                CornerRadius="4"
+                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                                BorderThickness="1"
+                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                Visibility="{x:Bind SteamVm.ShowRenoDxDetailSection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="RenoDX" />
+                                    <StackPanel
+                                        Spacing="4"
+                                        Visibility="{x:Bind SteamVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock
+                                            Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
+                                            Style="{ThemeResource CaptionTextBlockStyle}"
+                                            Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
+                                            TextWrapping="WrapWholeWords" />
+                                        <StackPanel
+                                            Spacing="2"
+                                            Visibility="{x:Bind SteamVm.ShowRenoDxUntrustedReferenceUrl, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <TextBlock
+                                                Opacity="0.8"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="Wiki reference URL (untrusted):"
+                                                TextWrapping="WrapWholeWords" />
+                                            <TextBlock
+                                                IsTextSelectionEnabled="True"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind SteamVm.RenoDxUntrustedReferenceUrl, Mode=OneWay}"
+                                                TextWrapping="WrapWholeWords" />
+                                            <HyperlinkButton
+                                                Padding="0"
+                                                Click="OpenSelectedUntrustedRenoDxUrl_Click"
+                                                Content="Open this URL" />
+                                        </StackPanel>
+                                        <HyperlinkButton
+                                            Padding="0"
+                                            Click="OpenRenoDxModsWiki_Click"
+                                            Content="Open RenoDX Mods wiki" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button
+                                            Click="InstallRenoDxAddon_Click"
+                                            Content="{x:Bind SteamVm.RenoDxAddonInstallButtonLabel, Mode=OneWay}"
+                                            IsEnabled="{x:Bind SteamVm.CanInstallRenoDxAddon, Mode=OneWay}" />
+                                        <Button
+                                            Click="UninstallRenoDxAddon_Click"
+                                            Content="Remove RenoDX addon"
+                                            IsEnabled="{x:Bind SteamVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button
-                                    Click="Install_Click"
-                                    Content="Install Display Commander"
-                                    IsEnabled="{x:Bind SteamVm.CanInstallDisplayCommander, Mode=OneWay}" />
-                                <Button Click="Remove_Click" Content="Remove" />
                                 <Button Click="OpenFolder_Click" Content="Open folder" />
                                 <Button
                                     Click="OpenSteamStore_Click"
@@ -209,6 +242,10 @@
                                 <Button
                                     Click="ToggleFavorite_Click"
                                     Content="{x:Bind SteamVm.FavoriteToggleButtonLabel, Mode=OneWay}"
+                                    IsEnabled="{x:Bind SteamVm.CanOpenSteamStore, Mode=OneWay}" />
+                                <Button
+                                    Click="ToggleSteamHidden_Click"
+                                    Content="{x:Bind SteamVm.HiddenToggleButtonLabel, Mode=OneWay}"
                                     IsEnabled="{x:Bind SteamVm.CanOpenSteamStore, Mode=OneWay}" />
                                 <Button Click="StartGame_Click" Content="Start game" />
                                 <Button
@@ -223,14 +260,6 @@
                                     Click="KillGameProcess_Click"
                                     Content="Kill"
                                     IsEnabled="{x:Bind SteamVm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
-                                <Button
-                                    Click="InstallRenoDxAddon_Click"
-                                    Content="Install / update RenoDX addon"
-                                    IsEnabled="{x:Bind SteamVm.CanInstallRenoDxAddon, Mode=OneWay}" />
-                                <Button
-                                    Click="UninstallRenoDxAddon_Click"
-                                    Content="Remove RenoDX addon"
-                                    IsEnabled="{x:Bind SteamVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
                             </StackPanel>
                             <TextBlock
                                 x:Name="SteamActionStatus"
@@ -276,16 +305,17 @@
                                 Grid.Column="0"
                                 PlaceholderText="Search by name, catalog id, or path…"
                                 Text="{x:Bind EpicVm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <RadioButtons
+                            <ComboBox
                                 Grid.Column="1"
+                                MinWidth="168"
                                 VerticalAlignment="Center"
                                 Header="Show"
-                                MaxColumns="3"
                                 SelectedIndex="{x:Bind EpicVm.ListFilterIndex, Mode=TwoWay}">
                                 <x:String>All</x:String>
                                 <x:String>Favorites</x:String>
                                 <x:String>RenoDX</x:String>
-                            </RadioButtons>
+                                <x:String>Hidden</x:String>
+                            </ComboBox>
                         </Grid>
 
                         <ListView
@@ -357,70 +387,102 @@
                                 Style="{ThemeResource CaptionTextBlockStyle}"
                                 Text="{x:Bind EpicVm.SelectedGameArchitectureDisplay, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
-                            <StackPanel
-                                Spacing="4"
-                                Visibility="{x:Bind EpicVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock
-                                    Opacity="0.88"
-                                    Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="{x:Bind EpicVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
-                                    TextWrapping="WrapWholeWords" />
-                                <RadioButtons
-                                    Header="Display Commander download"
-                                    MaxColumns="3"
-                                    SelectedIndex="{x:Bind EpicVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
-                                    <x:String>Auto (exe)</x:String>
-                                    <x:String>32-bit</x:String>
-                                    <x:String>64-bit</x:String>
-                                </RadioButtons>
-                            </StackPanel>
                             <TextBlock
                                 Opacity="0.88"
                                 Style="{ThemeResource BodyStrongTextBlockStyle}"
                                 Text="{x:Bind EpicVm.SelectedGameProcessStatusText, Mode=OneWay}"
                                 TextWrapping="WrapWholeWords" />
-                            <TextBlock
-                                Opacity="0.9"
-                                Style="{ThemeResource BodyStrongTextBlockStyle}"
-                                Text="{x:Bind EpicVm.WinMmInstallStatusText, Mode=OneWay}"
-                                TextWrapping="WrapWholeWords" />
-                            <StackPanel
-                                Spacing="4"
-                                Visibility="{x:Bind EpicVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <TextBlock
-                                    Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
-                                    Style="{ThemeResource CaptionTextBlockStyle}"
-                                    Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
-                                    TextWrapping="WrapWholeWords" />
-                                <StackPanel
-                                    Spacing="2"
-                                    Visibility="{x:Bind EpicVm.ShowRenoDxUntrustedReferenceUrl, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Border
+                                Padding="12"
+                                CornerRadius="4"
+                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                                BorderThickness="1"
+                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                Visibility="{x:Bind EpicVm.ShowDisplayCommanderAddonModeUi, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Display Commander" />
                                     <TextBlock
-                                        Opacity="0.8"
-                                        Style="{ThemeResource CaptionTextBlockStyle}"
-                                        Text="Wiki reference URL (untrusted):"
+                                        Opacity="0.9"
+                                        Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                        Text="{x:Bind EpicVm.WinMmInstallStatusText, Mode=OneWay}"
                                         TextWrapping="WrapWholeWords" />
-                                    <TextBlock
-                                        IsTextSelectionEnabled="True"
-                                        Style="{ThemeResource CaptionTextBlockStyle}"
-                                        Text="{x:Bind EpicVm.RenoDxUntrustedReferenceUrl, Mode=OneWay}"
-                                        TextWrapping="WrapWholeWords" />
-                                    <HyperlinkButton
-                                        Padding="0"
-                                        Click="OpenSelectedUntrustedRenoDxUrl_Click"
-                                        Content="Open this URL" />
+                                    <StackPanel Spacing="4">
+                                        <TextBlock
+                                            Opacity="0.88"
+                                            Style="{ThemeResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind EpicVm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}"
+                                            TextWrapping="WrapWholeWords" />
+                                        <RadioButtons
+                                            Header="Display Commander download"
+                                            MaxColumns="3"
+                                            SelectedIndex="{x:Bind EpicVm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
+                                            <x:String>Auto (exe)</x:String>
+                                            <x:String>32-bit</x:String>
+                                            <x:String>64-bit</x:String>
+                                        </RadioButtons>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button
+                                            Click="Install_Click"
+                                            Content="Install Display Commander"
+                                            IsEnabled="{x:Bind EpicVm.CanInstallDisplayCommander, Mode=OneWay}" />
+                                        <Button Click="Remove_Click" Content="Remove" />
+                                    </StackPanel>
                                 </StackPanel>
-                                <HyperlinkButton
-                                    Padding="0"
-                                    Click="OpenRenoDxModsWiki_Click"
-                                    Content="Open RenoDX Mods wiki" />
-                            </StackPanel>
+                            </Border>
+                            <Border
+                                Padding="12"
+                                CornerRadius="4"
+                                BorderBrush="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                                BorderThickness="1"
+                                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                                Visibility="{x:Bind EpicVm.ShowRenoDxDetailSection, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="RenoDX" />
+                                    <StackPanel
+                                        Spacing="4"
+                                        Visibility="{x:Bind EpicVm.ShowRenoDxUntrustedSourceWarning, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <TextBlock
+                                            Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
+                                            Style="{ThemeResource CaptionTextBlockStyle}"
+                                            Text="RenoDX: untrusted source — in-app download is only offered for allowlisted RenoDX addon URLs (clshortfuse and marat569 GitHub Pages; github.com/pmnoxx/renodx and github.com/mqhaji/renodx). Use other wiki links at your own risk."
+                                            TextWrapping="WrapWholeWords" />
+                                        <StackPanel
+                                            Spacing="2"
+                                            Visibility="{x:Bind EpicVm.ShowRenoDxUntrustedReferenceUrl, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <TextBlock
+                                                Opacity="0.8"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="Wiki reference URL (untrusted):"
+                                                TextWrapping="WrapWholeWords" />
+                                            <TextBlock
+                                                IsTextSelectionEnabled="True"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Text="{x:Bind EpicVm.RenoDxUntrustedReferenceUrl, Mode=OneWay}"
+                                                TextWrapping="WrapWholeWords" />
+                                            <HyperlinkButton
+                                                Padding="0"
+                                                Click="OpenSelectedUntrustedRenoDxUrl_Click"
+                                                Content="Open this URL" />
+                                        </StackPanel>
+                                        <HyperlinkButton
+                                            Padding="0"
+                                            Click="OpenRenoDxModsWiki_Click"
+                                            Content="Open RenoDX Mods wiki" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button
+                                            Click="InstallEpicRenoDxAddon_Click"
+                                            Content="{x:Bind EpicVm.RenoDxAddonInstallButtonLabel, Mode=OneWay}"
+                                            IsEnabled="{x:Bind EpicVm.CanInstallRenoDxAddon, Mode=OneWay}" />
+                                        <Button
+                                            Click="UninstallEpicRenoDxAddon_Click"
+                                            Content="Remove RenoDX addon"
+                                            IsEnabled="{x:Bind EpicVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button
-                                    Click="Install_Click"
-                                    Content="Install Display Commander"
-                                    IsEnabled="{x:Bind EpicVm.CanInstallDisplayCommander, Mode=OneWay}" />
-                                <Button Click="Remove_Click" Content="Remove" />
                                 <Button Click="OpenFolder_Click" Content="Open folder" />
                                 <Button
                                     Click="OpenEpicStore_Click"
@@ -429,6 +491,10 @@
                                 <Button
                                     Click="ToggleEpicFavorite_Click"
                                     Content="{x:Bind EpicVm.FavoriteToggleButtonLabel, Mode=OneWay}"
+                                    IsEnabled="{x:Bind EpicVm.CanSearchEpicStore, Mode=OneWay}" />
+                                <Button
+                                    Click="ToggleEpicHidden_Click"
+                                    Content="{x:Bind EpicVm.HiddenToggleButtonLabel, Mode=OneWay}"
                                     IsEnabled="{x:Bind EpicVm.CanSearchEpicStore, Mode=OneWay}" />
                                 <Button
                                     Click="StartEpicGame_Click"
@@ -446,14 +512,6 @@
                                     Click="KillEpicGameProcess_Click"
                                     Content="Kill"
                                     IsEnabled="{x:Bind EpicVm.IsSelectedGameExecutableRunning, Mode=OneWay}" />
-                                <Button
-                                    Click="InstallEpicRenoDxAddon_Click"
-                                    Content="Install / update RenoDX addon"
-                                    IsEnabled="{x:Bind EpicVm.CanInstallRenoDxAddon, Mode=OneWay}" />
-                                <Button
-                                    Click="UninstallEpicRenoDxAddon_Click"
-                                    Content="Remove RenoDX addon"
-                                    IsEnabled="{x:Bind EpicVm.CanUninstallRenoDxAddon, Mode=OneWay}" />
                             </StackPanel>
                             <TextBlock
                                 x:Name="EpicActionStatus"

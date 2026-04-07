@@ -330,7 +330,11 @@ public sealed partial class LibraryPage : Page
 
     private void ToggleFavorite_Click(object sender, RoutedEventArgs e) => SteamVm.ToggleSelectedFavorite();
 
+    private void ToggleSteamHidden_Click(object sender, RoutedEventArgs e) => SteamVm.ToggleSelectedHidden();
+
     private void ToggleEpicFavorite_Click(object sender, RoutedEventArgs e) => EpicVm.ToggleSelectedFavorite();
+
+    private void ToggleEpicHidden_Click(object sender, RoutedEventArgs e) => EpicVm.ToggleSelectedHidden();
 
     private void StartGame_Click(object sender, RoutedEventArgs e)
     {

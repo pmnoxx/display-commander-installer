@@ -139,13 +139,13 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         ApplyFilter();
     }
 
-    /// <summary>Maps to <see cref="ListFilter"/> for <c>RadioButtons.SelectedIndex</c> binding.</summary>
+    /// <summary>Maps to <see cref="ListFilter"/> for <c>ComboBox.SelectedIndex</c> binding.</summary>
     public int ListFilterIndex
     {
         get => (int)ListFilter;
         set
         {
-            if (value < 0 || value > (int)LibraryGameListFilter.RenoDx)
+            if (value < 0 || value > (int)LibraryGameListFilter.Hidden)
                 return;
             var v = (LibraryGameListFilter)value;
             if (ListFilter == v)
@@ -193,9 +193,13 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSearchEpicStore));
         OnPropertyChanged(nameof(SelectedGameIsFavorite));
         OnPropertyChanged(nameof(FavoriteToggleButtonLabel));
+        OnPropertyChanged(nameof(SelectedGameIsHidden));
+        OnPropertyChanged(nameof(HiddenToggleButtonLabel));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
+        OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
         OnPropertyChanged(nameof(CanInstallDisplayCommander));
+        OnPropertyChanged(nameof(ShowRenoDxDetailSection));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedSourceWarning));
         OnPropertyChanged(nameof(RenoDxUntrustedReferenceUrl));
         OnPropertyChanged(nameof(ShowRenoDxUntrustedReferenceUrl));
@@ -211,6 +215,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(WinMmInstallStatusText));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
+        OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
         OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
     }
@@ -228,6 +233,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanInstallDisplayCommander));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
+        OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
     }
 
@@ -246,6 +252,9 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             _suppressAddonBitnessPersist = false;
         }
     }
+
+    public bool ShowRenoDxDetailSection =>
+        SelectedGame is { HasRenoDxWikiListing: true };
 
     public bool CanInstallRenoDxAddon =>
         !string.IsNullOrEmpty(SelectedGame?.RenoDxSafeAddonUrl) && !IsResolvingPrimaryExecutable;
@@ -266,6 +275,9 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         }
     }
 
+    public string RenoDxAddonInstallButtonLabel =>
+        CanUninstallRenoDxAddon ? "Update RenoDX addon" : "Install RenoDX addon";
+
     /// <summary>Wiki-listed RenoDX game without an allowlisted in-app addon URL — user must use another source.</summary>
     public bool ShowRenoDxUntrustedSourceWarning =>
         SelectedGame is { HasRenoDxWikiListing: true } &&
@@ -280,6 +292,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));
+        OnPropertyChanged(nameof(RenoDxAddonInstallButtonLabel));
     }
 
     public bool CanOpenEpicLauncher =>
@@ -293,6 +306,12 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     public string FavoriteToggleButtonLabel =>
         SelectedGame is null ? "Favorite" : (SelectedGameIsFavorite ? "Remove favorite" : "Add favorite");
 
+    public bool SelectedGameIsHidden =>
+        SelectedGame is not null && AppServices.EpicHidden.IsHidden(SelectedGame.StableKey);
+
+    public string HiddenToggleButtonLabel =>
+        SelectedGame is null ? "Hide from list" : (SelectedGameIsHidden ? "Unhide" : "Hide from list");
+
     public void ToggleSelectedFavorite()
     {
         if (SelectedGame is null)
@@ -302,6 +321,18 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         fav.SetFavorite(key, !fav.IsFavorite(key));
         OnPropertyChanged(nameof(SelectedGameIsFavorite));
         OnPropertyChanged(nameof(FavoriteToggleButtonLabel));
+        ApplyFilter();
+    }
+
+    public void ToggleSelectedHidden()
+    {
+        if (SelectedGame is null)
+            return;
+        var hid = AppServices.EpicHidden;
+        var key = SelectedGame.StableKey;
+        hid.SetHidden(key, !hid.IsHidden(key));
+        OnPropertyChanged(nameof(SelectedGameIsHidden));
+        OnPropertyChanged(nameof(HiddenToggleButtonLabel));
         ApplyFilter();
     }
 
@@ -625,6 +656,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
                 (g.CatalogItemId?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
+        var hiddenStore = AppServices.EpicHidden;
         switch (ListFilter)
         {
             case LibraryGameListFilter.Favorites:
@@ -636,24 +668,30 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             case LibraryGameListFilter.RenoDx:
                 query = query.Where(g => g.HasRenoDxWikiListing);
                 break;
+            case LibraryGameListFilter.Hidden:
+                query = query.Where(g => hiddenStore.IsHidden(g.StableKey));
+                break;
             case LibraryGameListFilter.All:
             default:
                 break;
         }
 
-        FilteredGames.Clear();
-        var lastPlayed = AppServices.EpicLastPlayed;
-        foreach (var g in query
-                     .OrderByDescending(g => lastPlayed.TryGetLastPlayedUtc(g.StableKey) ?? DateTimeOffset.MinValue)
-                     .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
-            FilteredGames.Add(new EpicLibraryListItem(g));
-
-        if (SelectedGame is not null && !FilteredGames.Any(r => ReferenceEquals(r.Game, SelectedGame)))
-            SelectedGame = null;
+        if (ListFilter != LibraryGameListFilter.Hidden)
+            query = query.Where(g => !hiddenStore.IsHidden(g.StableKey));
 
         _suppressListSelectionSync = true;
         try
         {
+            FilteredGames.Clear();
+            var lastPlayed = AppServices.EpicLastPlayed;
+            foreach (var g in query
+                         .OrderByDescending(g => lastPlayed.TryGetLastPlayedUtc(g.StableKey) ?? DateTimeOffset.MinValue)
+                         .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+                FilteredGames.Add(new EpicLibraryListItem(g));
+
+            if (SelectedGame is not null && !FilteredGames.Any(r => ReferenceEquals(r.Game, SelectedGame)))
+                SelectedGame = null;
+
             SelectedListItem = SelectedGame is null ? null : FilteredGames.FirstOrDefault(r => ReferenceEquals(r.Game, SelectedGame));
         }
         finally
