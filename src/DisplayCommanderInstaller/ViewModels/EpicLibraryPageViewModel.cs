@@ -402,7 +402,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             var state = AppServices.Install.GetInstallState(dir, proxy, out _);
             return state switch
             {
-                WinMmInstallKind.None => $"{proxy} is not installed in this game folder.",
+                WinMmInstallKind.None => GetDisplayCommanderMissingOrDetectedStatus(dir, proxy),
                 WinMmInstallKind.Ours => FormatOursInstallStatus(dir, proxy),
                 WinMmInstallKind.UnknownForeign => AppendProxyDllVersionLine(
                     dir,
@@ -444,6 +444,17 @@ public partial class EpicLibraryPageViewModel : ObservableObject
     {
         var ver = AppServices.Install.TryGetManagedPayloadFileVersionSummary(gameDir, proxy);
         return string.IsNullOrEmpty(ver) ? line : $"{line}\n{ver}";
+    }
+
+    private static string GetDisplayCommanderMissingOrDetectedStatus(string gameDir, string selectedProxy)
+    {
+        if (AppServices.Install.TryFindInstalledProxyByProductName(gameDir, out var detectedProxy, out var versionSummary))
+        {
+            var line = $"Display Commander is installed as {detectedProxy} (detected from Product Name).";
+            return string.IsNullOrEmpty(versionSummary) ? line : $"{line}\n{versionSummary}";
+        }
+
+        return $"{selectedProxy} is not installed in this game folder.";
     }
 
     public void RefreshFilteredGameOrder() => ApplyFilter();

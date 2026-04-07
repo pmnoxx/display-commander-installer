@@ -15,6 +15,17 @@ public enum WinMmInstallKind
 public sealed class DisplayCommanderInstallService
 {
     public const string MarkerFileName = ".display_commander_installer_marker.json";
+    private const string DisplayCommanderProductName = "Display Commander";
+
+    private static readonly string[] ProductNameProbeDllFileNames =
+    [
+        "winmm.dll",
+        "dxgi.dll",
+        "d3d11.dll",
+        "d3d12.dll",
+        "version.dll",
+        "dbghelp.dll",
+    ];
 
     private static readonly HttpClient Http = CreateHttpClient();
 
@@ -175,6 +186,47 @@ public sealed class DisplayCommanderInstallService
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Probes known proxy DLL names and returns the first file whose PE version ProductName is "Display Commander".
+    /// </summary>
+    public bool TryFindInstalledProxyByProductName(string gameDirectory, out string proxyDllFileName, out string? versionSummary)
+    {
+        proxyDllFileName = "";
+        versionSummary = null;
+        foreach (var candidate in ProductNameProbeDllFileNames)
+        {
+            var dllPath = Path.Combine(gameDirectory, candidate);
+            if (!File.Exists(dllPath))
+                continue;
+
+            try
+            {
+                var vi = FileVersionInfo.GetVersionInfo(dllPath);
+                if (!DisplayCommanderProductName.Equals(vi.ProductName?.Trim(), StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                proxyDllFileName = candidate;
+                var product = vi.ProductVersion?.Trim();
+                if (!string.IsNullOrWhiteSpace(product))
+                    versionSummary = $"Display Commander (from {candidate}): {product}";
+                else
+                {
+                    var file = vi.FileVersion?.Trim();
+                    versionSummary = !string.IsNullOrWhiteSpace(file)
+                        ? $"Display Commander (from {candidate}): {file}"
+                        : $"Display Commander (from {candidate}): no version in file metadata";
+                }
+                return true;
+            }
+            catch
+            {
+                // Ignore unreadable/non-PE files and continue probing.
+            }
+        }
+
+        return false;
     }
 
     private static string EffectiveProxyName(InstallMarker marker)
