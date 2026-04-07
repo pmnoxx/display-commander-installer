@@ -9,6 +9,9 @@ public static class DisplayCommanderManagedProxyDlls
     [
         "winmm.dll",
         "dxgi.dll",
+        "d3d9.dll",
+        "d3d11.dll",
+        "d3d12.dll",
         "version.dll",
         "dbghelp.dll",
         "vulkan-1.dll",

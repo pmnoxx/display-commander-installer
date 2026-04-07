@@ -20,8 +20,11 @@ namespace DisplayCommanderInstaller.ViewModels;
 public partial class UnifiedLibraryPageViewModel : ObservableObject
 {
     private const string DebugLogPath = "debug-f4aa3e.log";
+    private static readonly IReadOnlyList<string> ProxyDllComboItemsStatic = BuildProxyDllComboItems();
     private string _lastApplySource = "unknown";
     private readonly DispatcherQueue _dispatcher;
+    private int _displayCommanderProxyDllComboSelectedIndex;
+    private bool _suppressProxyDllComboPersist;
     private readonly List<CustomGameEntry> _customGames = [];
     private readonly Dictionary<string, BitmapImage> _customIconsById = [];
     private CancellationTokenSource? _customIconPrefetchCts;
@@ -31,6 +34,29 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
     public EpicLibraryPageViewModel EpicVm { get; }
 
     public ObservableCollection<UnifiedLibraryListItem> FilteredGames { get; } = [];
+
+    public IReadOnlyList<string> DisplayCommanderProxyDllComboItems => ProxyDllComboItemsStatic;
+
+    public int DisplayCommanderProxyDllComboSelectedIndex
+    {
+        get => _displayCommanderProxyDllComboSelectedIndex;
+        set
+        {
+            if (_displayCommanderProxyDllComboSelectedIndex == value)
+                return;
+            _displayCommanderProxyDllComboSelectedIndex = value;
+            OnPropertyChanged();
+            if (!_suppressProxyDllComboPersist)
+                PersistDisplayCommanderProxyDllComboSelection(value);
+        }
+    }
+
+    private static IReadOnlyList<string> BuildProxyDllComboItems()
+    {
+        var list = new List<string> { "Default (from Settings)" };
+        list.AddRange(DisplayCommanderManagedProxyDlls.AllFileNames);
+        return list;
+    }
 
     [ObservableProperty]
     private UnifiedLibraryListItem? selectedListItem;
@@ -88,6 +114,18 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         _ => "All stores",
     };
 
+    public string ListFilterDisplay => ListFilter switch
+    {
+        LibraryGameListFilter.All => "All",
+        LibraryGameListFilter.Favorites => "Favorites",
+        LibraryGameListFilter.RenoDx => "RenoDX",
+        LibraryGameListFilter.Hidden => "Hidden",
+        _ => "All",
+    };
+
+    /// <summary>Short summary for filter button tooltip (store · list).</summary>
+    public string LibraryFilterSummary => $"{StoreFilterHeader} · {ListFilterDisplay}";
+
     public int ListFilterIndex
     {
         get => (int)ListFilter;
@@ -118,6 +156,8 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
     partial void OnListFilterChanged(LibraryGameListFilter value)
     {
         OnPropertyChanged(nameof(ListFilterIndex));
+        OnPropertyChanged(nameof(ListFilterDisplay));
+        OnPropertyChanged(nameof(LibraryFilterSummary));
         _lastApplySource = "OnListFilterChanged";
         ApplyFilter();
     }
@@ -125,6 +165,7 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(StoreFilterIndex));
         OnPropertyChanged(nameof(StoreFilterHeader));
+        OnPropertyChanged(nameof(LibraryFilterSummary));
         _lastApplySource = "OnStoreFilterChanged";
         ApplyFilter();
     }
@@ -133,6 +174,7 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
     {
         SteamVm.SelectedGame = value?.SteamGame;
         EpicVm.SelectedGame = value?.EpicGame;
+        SyncDisplayCommanderProxyDllComboToSelection();
         RaiseSelectionDependentProperties();
     }
 
@@ -298,7 +340,7 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
     public bool CanRemoveDisplayCommander =>
         (IsSteamSelected && SteamVm.CanRemoveDisplayCommander)
         || (IsEpicSelected && EpicVm.CanRemoveDisplayCommander)
-        || IsCustomSelected;
+        || CanRemoveDisplayCommanderForCustomSelection;
 
     public bool ShowDisplayCommanderAddonModeUi => HasSelectedGame;
 
@@ -328,7 +370,217 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
     public string WinMmInstallStatusText =>
         IsEpicSelected ? EpicVm.WinMmInstallStatusText :
         IsSteamSelected ? SteamVm.WinMmInstallStatusText :
-        "Custom game selected.";
+        CustomGameWinMmInstallStatusText;
+
+    private string CustomGameWinMmInstallStatusText
+    {
+        get
+        {
+            if (!IsCustomSelected || SelectedCustomGame is null)
+                return "Select a game to see proxy DLL status.";
+            var root = SelectedCustomGame.InstallLocation;
+            if (string.IsNullOrWhiteSpace(root))
+                return "No install folder is set for this game.";
+            var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
+            return AppServices.Install.GetLibraryProxyStatusText(dir, EffectiveDisplayCommanderProxyDllForCustom);
+        }
+    }
+
+    private bool CanRemoveDisplayCommanderForCustomSelection
+    {
+        get
+        {
+            if (!IsCustomSelected || SelectedCustomGame is null)
+                return false;
+            var root = SelectedCustomGame.InstallLocation;
+            if (string.IsNullOrWhiteSpace(root))
+                return false;
+            var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
+            return AppServices.Install.CanRemoveManagedProxyFromLibraryFolder(dir);
+        }
+    }
+
+    private string EffectiveDisplayCommanderProxyDllForCustom =>
+        AppServices.DisplayCommanderProxyDllOverrides.TryGetCustom(SelectedCustomGame!.Id)
+        ?? AppServices.Settings.DisplayCommanderProxyDllFileName;
+
+    /// <summary>Proxy DLL file name used for install and status (per-game override or Settings default).</summary>
+    public string GetEffectiveDisplayCommanderProxyDllForSelection()
+    {
+        if (IsSteamSelected && SelectedSteamGame is not null)
+            return AppServices.DisplayCommanderProxyDllOverrides.TryGetSteam(SelectedSteamGame.AppId)
+                ?? AppServices.Settings.DisplayCommanderProxyDllFileName;
+        if (IsEpicSelected && SelectedEpicGame is not null)
+            return AppServices.DisplayCommanderProxyDllOverrides.TryGetEpic(SelectedEpicGame.StableKey)
+                ?? AppServices.Settings.DisplayCommanderProxyDllFileName;
+        if (IsCustomSelected && SelectedCustomGame is not null)
+            return AppServices.DisplayCommanderProxyDllOverrides.TryGetCustom(SelectedCustomGame.Id)
+                ?? AppServices.Settings.DisplayCommanderProxyDllFileName;
+        return AppServices.Settings.DisplayCommanderProxyDllFileName;
+    }
+
+    private void SyncDisplayCommanderProxyDllComboToSelection()
+    {
+        var newIndex = ComputeDisplayCommanderProxyDllComboIndex();
+        _suppressProxyDllComboPersist = true;
+        try
+        {
+            if (_displayCommanderProxyDllComboSelectedIndex != newIndex)
+            {
+                _displayCommanderProxyDllComboSelectedIndex = newIndex;
+                OnPropertyChanged(nameof(DisplayCommanderProxyDllComboSelectedIndex));
+            }
+        }
+        finally
+        {
+            _suppressProxyDllComboPersist = false;
+        }
+    }
+
+    private int ComputeDisplayCommanderProxyDllComboIndex()
+    {
+        string? ovr = null;
+        if (IsSteamSelected && SelectedSteamGame is not null)
+            ovr = AppServices.DisplayCommanderProxyDllOverrides.TryGetSteam(SelectedSteamGame.AppId);
+        else if (IsEpicSelected && SelectedEpicGame is not null)
+            ovr = AppServices.DisplayCommanderProxyDllOverrides.TryGetEpic(SelectedEpicGame.StableKey);
+        else if (IsCustomSelected && SelectedCustomGame is not null)
+            ovr = AppServices.DisplayCommanderProxyDllOverrides.TryGetCustom(SelectedCustomGame.Id);
+
+        if (ovr is null)
+            return 0;
+
+        var names = DisplayCommanderManagedProxyDlls.AllFileNames;
+        for (var i = 0; i < names.Count; i++)
+        {
+            if (names[i].Equals(ovr, StringComparison.OrdinalIgnoreCase))
+                return i + 1;
+        }
+
+        return 0;
+    }
+
+    private void PersistDisplayCommanderProxyDllComboSelection(int comboIndex)
+    {
+        string? proxy = null;
+        if (comboIndex > 0)
+        {
+            var names = DisplayCommanderManagedProxyDlls.AllFileNames;
+            var i = comboIndex - 1;
+            if (i < names.Count)
+                proxy = names[i];
+        }
+
+        if (IsSteamSelected && SelectedSteamGame is not null)
+            AppServices.DisplayCommanderProxyDllOverrides.SetSteam(SelectedSteamGame.AppId, proxy);
+        else if (IsEpicSelected && SelectedEpicGame is not null)
+            AppServices.DisplayCommanderProxyDllOverrides.SetEpic(SelectedEpicGame.StableKey, proxy);
+        else if (IsCustomSelected && SelectedCustomGame is not null)
+            AppServices.DisplayCommanderProxyDllOverrides.SetCustom(SelectedCustomGame.Id, proxy);
+
+        SteamVm.RefreshWinMmInstallStatus();
+        EpicVm.RefreshWinMmInstallStatus();
+        OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(CanRemoveDisplayCommander));
+    }
+
+    public bool ShowPerGameAdvancedSettings => IsSteamSelected || IsEpicSelected;
+
+    public string PerGameAdvancedHintText =>
+        "Play: store launcher or the resolved game .exe. Optional .exe path replaces auto-detect for this title (install folder, EXE button, architecture).";
+
+    public int PlayLaunchPreferenceSelectedIndex
+    {
+        get
+        {
+            if (!ShowPerGameAdvancedSettings)
+                return 0;
+            return GetPlayLaunchPreferenceForSelection() == GamePlayLaunchPreference.GameExecutable ? 1 : 0;
+        }
+        set
+        {
+            if (!ShowPerGameAdvancedSettings)
+                return;
+            var pref = value == 1 ? GamePlayLaunchPreference.GameExecutable : GamePlayLaunchPreference.StoreLauncher;
+            if (GetPlayLaunchPreferenceForSelection() == pref)
+                return;
+            if (IsSteamSelected && SelectedSteamGame is not null)
+                AppServices.PerGameAdvanced.SetSteamPlayLaunch(SelectedSteamGame.AppId, pref);
+            else if (IsEpicSelected && SelectedEpicGame is not null)
+                AppServices.PerGameAdvanced.SetEpicPlayLaunch(SelectedEpicGame.StableKey, pref);
+            OnPropertyChanged(nameof(PlayLaunchPreferenceSelectedIndex));
+        }
+    }
+
+    public string PerGameExecutableOverrideSummary
+    {
+        get
+        {
+            if (!ShowPerGameAdvancedSettings)
+                return "";
+            var path = IsSteamSelected && SelectedSteamGame is not null
+                ? AppServices.PerGameAdvanced.GetSteam(SelectedSteamGame.AppId).ExplicitExecutablePath
+                : IsEpicSelected && SelectedEpicGame is not null
+                    ? AppServices.PerGameAdvanced.GetEpic(SelectedEpicGame.StableKey).ExplicitExecutablePath
+                    : null;
+            return string.IsNullOrWhiteSpace(path)
+                ? "Using automatic .exe detection."
+                : "Using: " + path;
+        }
+    }
+
+    public bool HasPerGameExecutableOverride
+    {
+        get
+        {
+            if (!ShowPerGameAdvancedSettings)
+                return false;
+            var path = IsSteamSelected && SelectedSteamGame is not null
+                ? AppServices.PerGameAdvanced.GetSteam(SelectedSteamGame.AppId).ExplicitExecutablePath
+                : IsEpicSelected && SelectedEpicGame is not null
+                    ? AppServices.PerGameAdvanced.GetEpic(SelectedEpicGame.StableKey).ExplicitExecutablePath
+                    : null;
+            return !string.IsNullOrWhiteSpace(path);
+        }
+    }
+
+    /// <summary>When true, Play starts the resolved .exe (Steam/Epic) instead of the store launcher.</summary>
+    public bool ShouldPlayLaunchViaGameExecutable()
+    {
+        if (IsSteamSelected && SelectedSteamGame is not null)
+            return AppServices.PerGameAdvanced.GetSteam(SelectedSteamGame.AppId).PlayLaunchPreference == GamePlayLaunchPreference.GameExecutable;
+        if (IsEpicSelected && SelectedEpicGame is not null)
+            return AppServices.PerGameAdvanced.GetEpic(SelectedEpicGame.StableKey).PlayLaunchPreference == GamePlayLaunchPreference.GameExecutable;
+        return false;
+    }
+
+    public void RefreshPrimaryExecutableResolution()
+    {
+        if (IsSteamSelected)
+            SteamVm.RefreshPrimaryExecutableForCurrentSelection();
+        else if (IsEpicSelected)
+            EpicVm.RefreshPrimaryExecutableForCurrentSelection();
+    }
+
+    public void NotifyPerGameAdvancedChanged()
+    {
+        OnPropertyChanged(nameof(PlayLaunchPreferenceSelectedIndex));
+        OnPropertyChanged(nameof(PerGameExecutableOverrideSummary));
+        OnPropertyChanged(nameof(HasPerGameExecutableOverride));
+        OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(CanRemoveDisplayCommander));
+        OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
+        OnPropertyChanged(nameof(SelectedGameArchitectureDisplay));
+    }
+
+    private GamePlayLaunchPreference GetPlayLaunchPreferenceForSelection()
+    {
+        if (IsSteamSelected && SelectedSteamGame is not null)
+            return AppServices.PerGameAdvanced.GetSteam(SelectedSteamGame.AppId).PlayLaunchPreference;
+        if (IsEpicSelected && SelectedEpicGame is not null)
+            return AppServices.PerGameAdvanced.GetEpic(SelectedEpicGame.StableKey).PlayLaunchPreference;
+        return GamePlayLaunchPreference.StoreLauncher;
+    }
 
     public string SelectedGameAddonPayloadsDisplay =>
         IsEpicSelected ? EpicVm.SelectedGameAddonPayloadsDisplay :
@@ -390,6 +642,18 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
 
     public bool CanInstallOrUpdateLocalReShade => HasSelectedGame && !string.IsNullOrWhiteSpace(SelectedGameReShadeFolder);
     public bool CanInstallOrUpdateGlobalReShade => true;
+
+    public string LocalReShadeInstallButtonLabel =>
+        !HasSelectedGame || string.IsNullOrWhiteSpace(SelectedGameReShadeFolder)
+            ? "Install local"
+            : ReShadeInstallStatus.HasAnyInstalled(SelectedGameReShadeFolder)
+                ? "Update local"
+                : "Install local";
+
+    public string GlobalReShadeInstallButtonLabel =>
+        ReShadeInstallStatus.HasAnyInstalled(GetGlobalReShadeFolder())
+            ? "Update global"
+            : "Install global";
 
     public bool ShowRenoDxDetailSection =>
         IsEpicSelected ? EpicVm.ShowRenoDxDetailSection :
@@ -807,6 +1071,12 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));
         OnPropertyChanged(nameof(EffectiveDisplayCommanderInstallBitness));
         OnPropertyChanged(nameof(WinMmInstallStatusText));
+        OnPropertyChanged(nameof(DisplayCommanderProxyDllComboSelectedIndex));
+        OnPropertyChanged(nameof(ShowPerGameAdvancedSettings));
+        OnPropertyChanged(nameof(PlayLaunchPreferenceSelectedIndex));
+        OnPropertyChanged(nameof(PerGameExecutableOverrideSummary));
+        OnPropertyChanged(nameof(HasPerGameExecutableOverride));
+        OnPropertyChanged(nameof(PerGameAdvancedHintText));
         OnPropertyChanged(nameof(SelectedGameAddonPayloadsDisplay));
         OnPropertyChanged(nameof(SelectedGameArchitectureDisplay));
         OnPropertyChanged(nameof(SelectedGameProcessStatusText));
@@ -816,6 +1086,8 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(EffectiveReShadeSourceText));
         OnPropertyChanged(nameof(CanInstallOrUpdateLocalReShade));
         OnPropertyChanged(nameof(CanInstallOrUpdateGlobalReShade));
+        OnPropertyChanged(nameof(LocalReShadeInstallButtonLabel));
+        OnPropertyChanged(nameof(GlobalReShadeInstallButtonLabel));
         OnPropertyChanged(nameof(ShowRenoDxDetailSection));
         OnPropertyChanged(nameof(CanInstallRenoDxAddon));
         OnPropertyChanged(nameof(CanUninstallRenoDxAddon));

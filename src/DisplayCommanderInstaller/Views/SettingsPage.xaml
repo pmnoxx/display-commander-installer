@@ -36,7 +36,7 @@
             <TextBlock
                 Opacity="0.75"
                 Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="Which DLL name to drop next to the game executable. Installing a new choice removes any other Display Commander proxy this app previously installed in that folder (winmm, dxgi, version, dbghelp, vulkan-1)."
+                Text="Default proxy DLL for new installs when a game has no per-game choice on the Library page. Installing a new choice removes any other Display Commander proxy this app previously installed in that folder (winmm, dxgi, d3d9, d3d11, d3d12, version, dbghelp, vulkan-1)."
                 TextWrapping="WrapWholeWords" />
             <ComboBox
                 x:Name="ProxyDllCombo"

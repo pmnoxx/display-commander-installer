@@ -41,28 +41,73 @@
                 <TextBlock VerticalAlignment="Center" Text="{x:Bind Vm.StatusMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
             </StackPanel>
 
-            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" ColumnSpacing="12">
+            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" ColumnSpacing="8">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBox
+                <Button
                     Grid.Column="0"
+                    Width="36"
+                    Height="36"
+                    Padding="0"
+                    VerticalAlignment="Bottom"
+                    automation:AutomationProperties.AutomationId="LibraryFilterButton"
+                    automation:AutomationProperties.Name="Library filters"
+                    ToolTipService.ToolTip="{x:Bind Vm.LibraryFilterSummary, Mode=OneWay}">
+                    <Button.Flyout>
+                        <MenuFlyout Opening="LibraryFilterFlyout_Opening">
+                            <MenuFlyoutItem IsEnabled="False" Text="Store" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryStoreFilter"
+                                Tag="S0"
+                                Text="All stores"
+                                Click="LibraryStoreFilterRadio_Click" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryStoreFilter"
+                                Tag="S1"
+                                Text="steam"
+                                Click="LibraryStoreFilterRadio_Click" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryStoreFilter"
+                                Tag="S2"
+                                Text="epic"
+                                Click="LibraryStoreFilterRadio_Click" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryStoreFilter"
+                                Tag="S3"
+                                Text="custom"
+                                Click="LibraryStoreFilterRadio_Click" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem IsEnabled="False" Text="Show" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryListFilter"
+                                Tag="L0"
+                                Text="All"
+                                Click="LibraryListFilterRadio_Click" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryListFilter"
+                                Tag="L1"
+                                Text="Favorites"
+                                Click="LibraryListFilterRadio_Click" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryListFilter"
+                                Tag="L2"
+                                Text="RenoDX"
+                                Click="LibraryListFilterRadio_Click" />
+                            <RadioMenuFlyoutItem
+                                GroupName="LibraryListFilter"
+                                Tag="L3"
+                                Text="Hidden"
+                                Click="LibraryListFilterRadio_Click" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                    <FontIcon Glyph="&#xE71C;" FontSize="16" />
+                </Button>
+                <TextBox
+                    Grid.Column="1"
                     PlaceholderText="Search by name, id, or path…"
                     Text="{x:Bind Vm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <ComboBox Grid.Column="1" MinWidth="168" Header="Store" SelectedIndex="{x:Bind Vm.StoreFilterIndex, Mode=TwoWay}">
-                    <x:String>All stores</x:String>
-                    <x:String>steam</x:String>
-                    <x:String>epic</x:String>
-                    <x:String>custom</x:String>
-                </ComboBox>
-                <ComboBox Grid.Column="2" MinWidth="168" Header="Show" SelectedIndex="{x:Bind Vm.ListFilterIndex, Mode=TwoWay}">
-                    <x:String>All</x:String>
-                    <x:String>Favorites</x:String>
-                    <x:String>RenoDX</x:String>
-                    <x:String>Hidden</x:String>
-                </ComboBox>
             </Grid>
 
             <ListView
@@ -150,6 +195,38 @@
                 <TextBlock Opacity="0.72" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGameAddonPayloadsDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                 <TextBlock Opacity="0.85" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.SelectedGameArchitectureDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                 <TextBlock Opacity="0.88" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Vm.SelectedGameProcessStatusText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <Expander
+                    Margin="0,2,0,0"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    Header="Advanced"
+                    IsExpanded="False"
+                    Visibility="{x:Bind Vm.ShowPerGameAdvancedSettings, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel Padding="0,8,0,0" Spacing="10">
+                        <TextBlock
+                            Opacity="0.82"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{x:Bind Vm.PerGameAdvancedHintText, Mode=OneWay}"
+                            TextWrapping="WrapWholeWords" />
+                        <RadioButtons Header="Play button" MaxColumns="2" SelectedIndex="{x:Bind Vm.PlayLaunchPreferenceSelectedIndex, Mode=TwoWay}">
+                            <x:String>Store / launcher</x:String>
+                            <x:String>Game .exe</x:String>
+                        </RadioButtons>
+                        <TextBlock
+                            Opacity="0.8"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Text="{x:Bind Vm.PerGameExecutableOverrideSummary, Mode=OneWay}"
+                            TextWrapping="WrapWholeWords"
+                            IsTextSelectionEnabled="True" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Click="PickPerGameExecutable_Click" Content="Browse .exe…" />
+                            <Button
+                                Click="ClearPerGameExecutableOverride_Click"
+                                Content="Use auto-detect"
+                                IsEnabled="{x:Bind Vm.HasPerGameExecutableOverride, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
                 <Border
                     Padding="12"
                     CornerRadius="4"
@@ -161,6 +238,12 @@
                         <TextBlock Style="{ThemeResource SubtitleTextBlockStyle}" Text="Display Commander" />
                         <TextBlock Opacity="0.9" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Vm.WinMmInstallStatusText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                         <TextBlock Opacity="0.88" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.DisplayCommanderAddonChoiceSummary, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                        <ComboBox
+                            Header="Proxy DLL (this game)"
+                            MinWidth="220"
+                            HorizontalAlignment="Left"
+                            ItemsSource="{x:Bind Vm.DisplayCommanderProxyDllComboItems, Mode=OneWay}"
+                            SelectedIndex="{x:Bind Vm.DisplayCommanderProxyDllComboSelectedIndex, Mode=TwoWay}" />
                         <RadioButtons Header="Display Commander download" MaxColumns="3" SelectedIndex="{x:Bind Vm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
                             <x:String>Auto (exe)</x:String>
                             <x:String>32-bit</x:String>
@@ -184,8 +267,8 @@
                         <TextBlock Opacity="0.9" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="{x:Bind Vm.GlobalReShadeStatusText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                         <TextBlock Opacity="0.85" Style="{ThemeResource CaptionTextBlockStyle}" Text="{x:Bind Vm.EffectiveReShadeSourceText, Mode=OneWay}" TextWrapping="WrapWholeWords" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Click="InstallOrUpdateLocalReShade_Click" Content="Install / Update Local" IsEnabled="{x:Bind Vm.CanInstallOrUpdateLocalReShade, Mode=OneWay}" />
-                            <Button Click="InstallOrUpdateGlobalReShade_Click" Content="Install / Update Global" IsEnabled="{x:Bind Vm.CanInstallOrUpdateGlobalReShade, Mode=OneWay}" />
+                            <Button Click="InstallOrUpdateLocalReShade_Click" Content="{x:Bind Vm.LocalReShadeInstallButtonLabel, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanInstallOrUpdateLocalReShade, Mode=OneWay}" />
+                            <Button Click="InstallOrUpdateGlobalReShade_Click" Content="{x:Bind Vm.GlobalReShadeInstallButtonLabel, Mode=OneWay}" IsEnabled="{x:Bind Vm.CanInstallOrUpdateGlobalReShade, Mode=OneWay}" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -195,8 +278,10 @@
                     Spacing="8"
                     Visibility="{x:Bind Vm.IsSteamSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                     <Button Click="OpenSteamStore_Click" Content="Store page" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
+                    <Button Click="OpenSteamCommunityHub_Click" Content="Community hub" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
                     <Button Click="OpenSteamDiscussions_Click" Content="Discussions" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
                     <Button Click="OpenSteamGuides_Click" Content="Guides" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
+                    <Button Click="OpenSteamAchievements_Click" Content="Achievements" IsEnabled="{x:Bind Vm.CanOpenSteamStore, Mode=OneWay}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Click="OpenFolder_Click" Content="Open folder" />

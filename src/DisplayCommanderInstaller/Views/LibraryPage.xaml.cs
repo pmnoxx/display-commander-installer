@@ -10,6 +10,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace DisplayCommanderInstaller.Views;
 
@@ -104,7 +106,7 @@ public sealed partial class LibraryPage : Page
             AppServices.Settings.DisplayCommanderDownloadUrl,
             effectiveBitness);
 
-        var proxy = AppServices.Settings.DisplayCommanderProxyDllFileName;
+        var proxy = Vm.GetEffectiveDisplayCommanderProxyDllForSelection();
         var state = install.GetInstallState(gameDir, proxy, out _);
         var allowForeign = false;
         if (state == WinMmInstallKind.UnknownForeign)
@@ -135,6 +137,7 @@ public sealed partial class LibraryPage : Page
                 allowForeign,
                 CreateUiProgress(),
                 CancellationToken.None);
+            ActionStatus.Visibility = Visibility.Collapsed;
         }
         catch (Exception ex)
         {
@@ -332,6 +335,35 @@ public sealed partial class LibraryPage : Page
         }
     }
 
+    private void LibraryFilterFlyout_Opening(object sender, object e)
+    {
+        if (sender is not MenuFlyout mf)
+            return;
+        var storeIdx = Vm.StoreFilterIndex;
+        var listIdx = Vm.ListFilterIndex;
+        foreach (var item in mf.Items)
+        {
+            if (item is not RadioMenuFlyoutItem radio || radio.Tag is not string tag || tag.Length < 2)
+                continue;
+            if (tag[0] == 'S' && int.TryParse(tag.AsSpan(1), out var si))
+                radio.IsChecked = si == storeIdx;
+            else if (tag[0] == 'L' && int.TryParse(tag.AsSpan(1), out var li))
+                radio.IsChecked = li == listIdx;
+        }
+    }
+
+    private void LibraryStoreFilterRadio_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioMenuFlyoutItem { Tag: string s } && s.Length >= 2 && s[0] == 'S' && int.TryParse(s.AsSpan(1), out var idx))
+            Vm.StoreFilterIndex = idx;
+    }
+
+    private void LibraryListFilterRadio_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioMenuFlyoutItem { Tag: string s } && s.Length >= 2 && s[0] == 'L' && int.TryParse(s.AsSpan(1), out var idx))
+            Vm.ListFilterIndex = idx;
+    }
+
     private void OpenSteamStore_Click(object sender, RoutedEventArgs e)
     {
         if (Vm.SelectedSteamGame is null)
@@ -350,6 +382,27 @@ public sealed partial class LibraryPage : Page
         {
             ActionStatus.Visibility = Visibility.Visible;
             ActionStatus.Text = "Could not open Steam. Is it installed?";
+        }
+    }
+
+    private void OpenSteamCommunityHub_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm.SelectedSteamGame is null)
+            return;
+
+        var appId = Vm.SelectedSteamGame.AppId;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://steamcommunity.com/app/{appId}/",
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not open Steam Community hub.";
         }
     }
 
@@ -395,6 +448,27 @@ public sealed partial class LibraryPage : Page
         }
     }
 
+    private void OpenSteamAchievements_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm.SelectedSteamGame is null)
+            return;
+
+        var appId = Vm.SelectedSteamGame.AppId;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://steamcommunity.com/stats/{appId}/achievements/",
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            ActionStatus.Visibility = Visibility.Visible;
+            ActionStatus.Text = "Could not open Steam achievements.";
+        }
+    }
+
     private void OpenEpicStore_Click(object sender, RoutedEventArgs e)
     {
         if (Vm.SelectedEpicGame is null)
@@ -434,6 +508,11 @@ public sealed partial class LibraryPage : Page
         if (Vm.SelectedSteamGame is null)
             return;
 
+        if (Vm.ShouldPlayLaunchViaGameExecutable() && TryStartResolvedGameExecutable(reportToActionStatus: false))
+        {
+            return;
+        }
+
         var appId = Vm.SelectedSteamGame.AppId;
         try
         {
@@ -457,6 +536,11 @@ public sealed partial class LibraryPage : Page
     {
         if (Vm.SelectedEpicGame is null)
             return;
+
+        if (Vm.ShouldPlayLaunchViaGameExecutable() && TryStartResolvedGameExecutable(reportToActionStatus: false))
+        {
+            return;
+        }
 
         var uri = EpicGameLauncherLinks.TryGetLaunchUri(Vm.SelectedEpicGame);
         if (uri is null)
@@ -525,22 +609,35 @@ public sealed partial class LibraryPage : Page
         StartGame_Click(sender, e);
     }
 
-    private void StartViaExe_Click(object sender, RoutedEventArgs e)
+    private void StartViaExe_Click(object sender, RoutedEventArgs e) =>
+        _ = TryStartResolvedGameExecutable(reportToActionStatus: true);
+
+    /// <summary>Starts <see cref="UnifiedLibraryPageViewModel.SelectedGameExecutablePath"/> when valid (Steam / Epic / custom).</summary>
+    /// <returns>True if a process was started.</returns>
+    private bool TryStartResolvedGameExecutable(bool reportToActionStatus)
     {
         var exe = Vm.SelectedGameExecutablePath;
         if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
         {
-            ActionStatus.Visibility = Visibility.Visible;
-            ActionStatus.Text = "No resolved game executable path.";
-            return;
+            if (reportToActionStatus)
+            {
+                ActionStatus.Visibility = Visibility.Visible;
+                ActionStatus.Text = "No resolved game executable path.";
+            }
+
+            return false;
         }
 
         var workDir = Path.GetDirectoryName(exe);
         if (string.IsNullOrEmpty(workDir))
         {
-            ActionStatus.Visibility = Visibility.Visible;
-            ActionStatus.Text = "Could not determine the executable folder.";
-            return;
+            if (reportToActionStatus)
+            {
+                ActionStatus.Visibility = Visibility.Visible;
+                ActionStatus.Text = "Could not determine the executable folder.";
+            }
+
+            return false;
         }
 
         try
@@ -567,12 +664,68 @@ public sealed partial class LibraryPage : Page
             }
 
             Vm.RefreshFilteredGameOrder();
+            return true;
         }
         catch (Exception ex)
         {
-            ActionStatus.Visibility = Visibility.Visible;
-            ActionStatus.Text = "Could not start executable: " + ex.Message;
+            if (reportToActionStatus)
+            {
+                ActionStatus.Visibility = Visibility.Visible;
+                ActionStatus.Text = "Could not start executable: " + ex.Message;
+            }
+
+            return false;
         }
+    }
+
+    private static void AttachPickerWindow(object picker)
+    {
+        if (App.CurrentWindow is null)
+            return;
+        var hwnd = WindowNative.GetWindowHandle(App.CurrentWindow);
+        InitializeWithWindow.Initialize(picker, hwnd);
+    }
+
+    private async void PickPerGameExecutable_Click(object sender, RoutedEventArgs e)
+    {
+        if (!Vm.ShowPerGameAdvancedSettings)
+            return;
+
+        var picker = new FileOpenPicker
+        {
+            SuggestedStartLocation = PickerLocationId.ComputerFolder,
+            ViewMode = PickerViewMode.List,
+        };
+        picker.FileTypeFilter.Add(".exe");
+        AttachPickerWindow(picker);
+
+        var file = await picker.PickSingleFileAsync();
+        if (file is null)
+            return;
+
+        var path = file.Path;
+        if (Vm.IsSteamSelected && Vm.SelectedSteamGame is not null)
+            AppServices.PerGameAdvanced.SetSteamExecutableOverride(Vm.SelectedSteamGame.AppId, path);
+        else if (Vm.IsEpicSelected && Vm.SelectedEpicGame is not null)
+            AppServices.PerGameAdvanced.SetEpicExecutableOverride(Vm.SelectedEpicGame.StableKey, path);
+        else
+            return;
+
+        Vm.RefreshPrimaryExecutableResolution();
+        Vm.NotifyPerGameAdvancedChanged();
+    }
+
+    private void ClearPerGameExecutableOverride_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm.IsSteamSelected && Vm.SelectedSteamGame is not null)
+            AppServices.PerGameAdvanced.SetSteamExecutableOverride(Vm.SelectedSteamGame.AppId, null);
+        else if (Vm.IsEpicSelected && Vm.SelectedEpicGame is not null)
+            AppServices.PerGameAdvanced.SetEpicExecutableOverride(Vm.SelectedEpicGame.StableKey, null);
+        else
+            return;
+
+        Vm.RefreshPrimaryExecutableResolution();
+        Vm.NotifyPerGameAdvancedChanged();
     }
 
     private async void ScheduleSteamProcessStatusRefresh()

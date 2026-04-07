@@ -422,18 +422,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
                 return "No install folder is set for this game.";
 
             var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
-            var proxy = AppServices.Settings.DisplayCommanderProxyDllFileName;
-            var state = AppServices.Install.GetInstallState(dir, proxy, out _);
-            return state switch
-            {
-                WinMmInstallKind.None => GetDisplayCommanderMissingOrDetectedStatus(dir, proxy),
-                WinMmInstallKind.Ours => FormatOursInstallStatus(dir, proxy),
-                WinMmInstallKind.UnknownForeign => AppendProxyDllVersionLine(
-                    dir,
-                    proxy,
-                    $"{proxy} is present but is not from this installer (different file or missing marker)."),
-                _ => "",
-            };
+            return AppServices.Install.GetLibraryProxyStatusText(dir, EffectiveDisplayCommanderProxyDll);
         }
     }
 
@@ -447,8 +436,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             if (string.IsNullOrWhiteSpace(root))
                 return false;
             var dir = GameInstallLayout.GetPayloadAndProxyDirectory(SelectedGameExecutablePath, root);
-            var proxy = AppServices.Settings.DisplayCommanderProxyDllFileName;
-            return AppServices.Install.GetInstallState(dir, proxy, out _) == WinMmInstallKind.Ours;
+            return AppServices.Install.CanRemoveManagedProxyFromLibraryFolder(dir);
         }
     }
 
@@ -458,28 +446,12 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(CanRemoveDisplayCommander));
     }
 
-    private static string FormatOursInstallStatus(string gameDir, string proxy) =>
-        AppendProxyDllVersionLine(
-            gameDir,
-            proxy,
-            $"Display Commander is installed as {proxy} (managed by this app).");
+    /// <summary>Re-run EXE resolution (e.g. after a per-game executable override in Advanced).</summary>
+    public void RefreshPrimaryExecutableForCurrentSelection() => RestartArchitectureDetection(SelectedGame);
 
-    private static string AppendProxyDllVersionLine(string gameDir, string proxy, string line)
-    {
-        var ver = AppServices.Install.TryGetManagedPayloadFileVersionSummary(gameDir, proxy);
-        return string.IsNullOrEmpty(ver) ? line : $"{line}\n{ver}";
-    }
-
-    private static string GetDisplayCommanderMissingOrDetectedStatus(string gameDir, string selectedProxy)
-    {
-        if (AppServices.Install.TryFindInstalledProxyByProductName(gameDir, out var detectedProxy, out var versionSummary))
-        {
-            var line = $"Display Commander is installed as {detectedProxy} (detected from Product Name).";
-            return string.IsNullOrEmpty(versionSummary) ? line : $"{line}\n{versionSummary}";
-        }
-
-        return $"{selectedProxy} is not installed in this game folder.";
-    }
+    private string EffectiveDisplayCommanderProxyDll =>
+        AppServices.DisplayCommanderProxyDllOverrides.TryGetEpic(SelectedGame!.StableKey)
+        ?? AppServices.Settings.DisplayCommanderProxyDllFileName;
 
     public void RefreshFilteredGameOrder() => ApplyFilter();
 
@@ -603,7 +575,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             try
             {
                 token.ThrowIfCancellationRequested();
-                var exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(game.InstallLocation, game.Name, token);
+                var exe = PerGameExecutableResolutionHelper.TryResolveEpicExecutable(game, AppServices.PerGameAdvanced, token);
                 if (exe is null)
                 {
                     PostArchitectureResult(game, token, null, GameExecutableBitness.Unknown, "Could not detect — no suitable EXE in game folder.");
@@ -827,7 +799,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             string? exe;
             try
             {
-                exe = SteamGamePrimaryExeResolver.TryResolvePrimaryExe(item.Game.InstallLocation, item.Game.Name, cancellationToken);
+                exe = PerGameExecutableResolutionHelper.TryResolveEpicExecutable(item.Game, AppServices.PerGameAdvanced, cancellationToken);
             }
             catch (OperationCanceledException)
             {
