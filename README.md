@@ -23,8 +23,8 @@ After build, run **`DisplayCommanderInstaller.exe`** from the output directory (
 
 `src/DisplayCommanderInstaller/bin/x64/Release/net8.0-windows10.0.26100.0/win-x64/`
 
-For a self-contained **.NET** + WASDK folder to zip, use **publish** (see earlier discussion):  
-`dotnet publish src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -c Release -p:Platform=x64 -p:PublishProfile=Properties/PublishProfiles/win-x64.pubxml`  
+For a self-contained **.NET** + WASDK folder to zip, use **publish** (see earlier discussion):
+`dotnet publish src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -c Release -p:Platform=x64 -p:PublishProfile=Properties/PublishProfiles/win-x64.pubxml`
 and ship the entire **`publish`** folder.
 
 You can also use `dotnet run --project src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -p:Platform=x64` (Windows only).
@@ -36,3 +36,7 @@ ReShade (`ReShade64.dll`), RenoDX bundles, and other stores (Epic, GOG, Xbox) ar
 ## CI
 
 GitHub Actions workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) restores, runs tests, and builds the WinUI app with `Platform=x64`.
+
+## Community
+
+Join the Display Commander Discord: [https://discord.gg/mHMaF6nZ](https://discord.gg/mHMaF6nZ)
