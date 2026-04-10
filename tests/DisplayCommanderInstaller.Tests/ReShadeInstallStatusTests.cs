@@ -36,6 +36,39 @@ public sealed class ReShadeInstallStatusTests
     }
 
     [Fact]
+    public void TryFindReShadeProxyByProductName_EmptyFolder_ReturnsFalse()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "reshade_proxy_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var ok = ReShadeInstallStatus.TryFindReShadeProxyByProductName(root, out var proxy, out var summary);
+            Assert.False(ok);
+            Assert.Equal("", proxy);
+            Assert.Null(summary);
+        }
+        finally
+        {
+            TryDelete(root);
+        }
+    }
+
+    [Fact]
+    public void HasAnyInstalled_NoReShadeDllsOrProxies_ReturnsFalse()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "reshade_has_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            Assert.False(ReShadeInstallStatus.HasAnyInstalled(root));
+        }
+        finally
+        {
+            TryDelete(root);
+        }
+    }
+
+    [Fact]
     public void FormatInstallFolderStatus_WithOneDll_ShowsMissingOtherDll()
     {
         var root = Path.Combine(Path.GetTempPath(), "reshade_folder_" + Guid.NewGuid().ToString("N"));

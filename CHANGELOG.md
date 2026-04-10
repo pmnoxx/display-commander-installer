@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-04-10
+
+### Added
+
+- **ReShade detection** for installs that use chain-load proxies only (no `reshade32.dll` / `reshade64.dll` in the folder): probes `d3d9.dll`, `d3d11.dll`, `d3d12.dll`, `dxgi.dll`, `opengl32.dll`, and `dinput8.dll` and treats a file as ReShade when its version resource **Product name** contains `reshade` (case-insensitive). Library **ReShade** status and **has ReShade** logic use this in addition to the addon DLL filenames.
+
 ## [0.0.3] - 2026-04-07
 
 ### Added
