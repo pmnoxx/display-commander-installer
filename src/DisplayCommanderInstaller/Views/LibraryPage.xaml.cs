@@ -8,6 +8,7 @@ using DisplayCommanderInstaller.Core.RenoDx;
 using DisplayCommanderInstaller.Services;
 using DisplayCommanderInstaller.ViewModels;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -616,6 +617,11 @@ public sealed partial class LibraryPage : Page
 
     private void ToggleFavorite_Click(object sender, RoutedEventArgs e) => Vm.ToggleSelectedFavorite();
     private void ToggleHidden_Click(object sender, RoutedEventArgs e) => Vm.ToggleSelectedHidden();
+    private string GetFavoriteGlyph(bool isFavorite) => isFavorite ? "\uE735" : "\uE734";
+    private string GetHiddenGlyph(bool isHidden) => isHidden ? "\uE73A" : "\uE890";
+    private Brush GetFavoriteForeground(bool isFavorite) => isFavorite
+        ? new SolidColorBrush(Microsoft.UI.Colors.Gold)
+        : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
 
     private void StartGame_Click(object sender, RoutedEventArgs e)
     {

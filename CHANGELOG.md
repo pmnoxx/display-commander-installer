@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-04-15
+
+### Added
+
+- Library detail panel: selected game title now uses larger, bolder text for better readability.
+- Favorite toggle icon next to the selected game title (star button with hover text for mark/remove favorite).
+- Library list rows now show a yellow star icon for favorited games.
+
 ## [0.0.4] - 2026-04-10
 
 ### Added
