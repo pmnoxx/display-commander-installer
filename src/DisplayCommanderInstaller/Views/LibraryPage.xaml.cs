@@ -623,22 +623,22 @@ public sealed partial class LibraryPage : Page
         ? new SolidColorBrush(Microsoft.UI.Colors.Gold)
         : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
 
-    private void StartGame_Click(object sender, RoutedEventArgs e)
+    private async void StartGame_Click(object sender, RoutedEventArgs e)
     {
         if (Vm.IsSteamSelected)
-            StartSelectedSteamGame();
+            await StartSelectedSteamGameAsync();
         else if (Vm.IsEpicSelected)
-            StartSelectedEpicGame();
+            await StartSelectedEpicGameAsync();
         else
             StartCustomGame();
     }
 
-    private void StartSelectedSteamGame()
+    private async Task StartSelectedSteamGameAsync()
     {
         if (Vm.SelectedSteamGame is null)
             return;
 
-        if (Vm.ShouldPlayLaunchViaGameExecutable() && TryStartResolvedGameExecutable(reportToActionStatus: false))
+        if (Vm.ShouldPlayLaunchViaGameExecutable() && await TryStartResolvedGameExecutableAsync(reportToActionStatus: false))
         {
             return;
         }
@@ -662,12 +662,12 @@ public sealed partial class LibraryPage : Page
         }
     }
 
-    private void StartSelectedEpicGame()
+    private async Task StartSelectedEpicGameAsync()
     {
         if (Vm.SelectedEpicGame is null)
             return;
 
-        if (Vm.ShouldPlayLaunchViaGameExecutable() && TryStartResolvedGameExecutable(reportToActionStatus: false))
+        if (Vm.ShouldPlayLaunchViaGameExecutable() && await TryStartResolvedGameExecutableAsync(reportToActionStatus: false))
         {
             return;
         }
@@ -739,12 +739,13 @@ public sealed partial class LibraryPage : Page
         StartGame_Click(sender, e);
     }
 
-    private void StartViaExe_Click(object sender, RoutedEventArgs e) =>
-        _ = TryStartResolvedGameExecutable(reportToActionStatus: true);
+    private async void StartViaExe_Click(object sender, RoutedEventArgs e) =>
+        await TryStartResolvedGameExecutableAsync(reportToActionStatus: true);
 
     /// <summary>Starts <see cref="UnifiedLibraryPageViewModel.SelectedGameExecutablePath"/> when valid (Steam / Epic / custom).</summary>
+    /// <remarks><see cref="Process.Start(System.Diagnostics.ProcessStartInfo)"/> can block the UI thread; it runs on a pool thread here.</remarks>
     /// <returns>True if a process was started.</returns>
-    private bool TryStartResolvedGameExecutable(bool reportToActionStatus)
+    private async Task<bool> TryStartResolvedGameExecutableAsync(bool reportToActionStatus)
     {
         var exe = Vm.SelectedGameExecutablePath;
         if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
@@ -770,31 +771,20 @@ public sealed partial class LibraryPage : Page
             return false;
         }
 
+        var steamGame = Vm.IsSteamSelected ? Vm.SelectedSteamGame : null;
+        var epicGame = Vm.IsEpicSelected ? Vm.SelectedEpicGame : null;
+
         try
         {
-            Process.Start(new ProcessStartInfo
+            await Task.Run(() =>
             {
-                FileName = exe,
-                WorkingDirectory = workDir,
-                UseShellExecute = true,
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exe,
+                    WorkingDirectory = workDir,
+                    UseShellExecute = true,
+                });
             });
-            if (Vm.IsSteamSelected && Vm.SelectedSteamGame is not null)
-            {
-                AppServices.SteamLastPlayed.RecordPlayed(Vm.SelectedSteamGame.AppId);
-                ScheduleSteamProcessStatusRefresh();
-            }
-            else if (Vm.IsEpicSelected && Vm.SelectedEpicGame is not null)
-            {
-                AppServices.EpicLastPlayed.RecordPlayed(Vm.SelectedEpicGame.StableKey);
-                ScheduleEpicProcessStatusRefresh();
-            }
-            else
-            {
-                Vm.RecordCustomPlayed();
-            }
-
-            Vm.RefreshFilteredGameOrder();
-            return true;
         }
         catch (Exception ex)
         {
@@ -806,6 +796,24 @@ public sealed partial class LibraryPage : Page
 
             return false;
         }
+
+        if (steamGame is not null)
+        {
+            AppServices.SteamLastPlayed.RecordPlayed(steamGame.AppId);
+            ScheduleSteamProcessStatusRefresh();
+        }
+        else if (epicGame is not null)
+        {
+            AppServices.EpicLastPlayed.RecordPlayed(epicGame.StableKey);
+            ScheduleEpicProcessStatusRefresh();
+        }
+        else
+        {
+            Vm.RecordCustomPlayed();
+        }
+
+        Vm.RefreshFilteredGameOrder();
+        return true;
     }
 
     private static void AttachPickerWindow(object picker)
