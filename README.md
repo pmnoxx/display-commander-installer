@@ -1,6 +1,6 @@
-# Display Commander Installer
+# Display Commander Installer (prototype)
 
-WinUI 3 desktop installer for [Display Commander](https://github.com/pmnoxx/display-commander). It helps you add Display Commander to installed games (as a proxy DLL such as **`winmm.dll`**) and manage those installs from a library view.
+Desktop installer for [Display Commander](https://github.com/pmnoxx/display-commander). It helps install update Display Commander, Reshade, and other addons.
 
 ## Supported stores
 
@@ -35,13 +35,6 @@ and ship the entire **`publish`** folder.
 
 You can also use `dotnet run --project src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -p:Platform=x64` (Windows only).
 
-## Roadmap (not in MVP)
-
-ReShade (`ReShade64.dll`), RenoDX bundles, and other stores (Epic, GOG, Xbox) are deferred; see **Settings** in the app for a short note.
-
-## CI
-
-GitHub Actions workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) restores, runs tests, and builds the WinUI app with `Platform=x64`.
 
 ## Community
 
