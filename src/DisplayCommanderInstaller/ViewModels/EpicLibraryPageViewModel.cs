@@ -471,7 +471,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         var path = SelectedGameExecutablePath;
         if (string.IsNullOrEmpty(path))
             return;
-        GameExecutableProcessHelper.TryCloseMainWindows(path);
+        GameExecutableProcessHelper.TryCloseMainWindows(path, SelectedGame?.InstallLocation);
         _ = Task.Run(async () =>
         {
             await Task.Delay(400).ConfigureAwait(false);
@@ -484,7 +484,7 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         var path = SelectedGameExecutablePath;
         if (string.IsNullOrEmpty(path))
             return;
-        GameExecutableProcessHelper.TryKillProcesses(path);
+        GameExecutableProcessHelper.TryKillProcesses(path, SelectedGame?.InstallLocation);
         _ = Task.Run(async () =>
         {
             await Task.Delay(400).ConfigureAwait(false);
@@ -660,13 +660,14 @@ public partial class EpicLibraryPageViewModel : ObservableObject
         }
 
         var pathCopy = path;
+        var installCopy = SelectedGame.InstallLocation ?? "";
         _ = Task.Run(() =>
         {
             bool running;
             string line;
             try
             {
-                (running, line) = GameExecutableProcessHelper.GetExecutableProcessMonitorStatus(pathCopy);
+                (running, line) = GameExecutableProcessHelper.GetExecutableProcessMonitorStatus(pathCopy, installCopy);
             }
             catch
             {
@@ -677,6 +678,8 @@ public partial class EpicLibraryPageViewModel : ObservableObject
             _dispatcher.TryEnqueue(() =>
             {
                 if (!string.Equals(SelectedGameExecutablePath, pathCopy, StringComparison.OrdinalIgnoreCase))
+                    return;
+                if (!string.Equals(SelectedGame?.InstallLocation ?? "", installCopy, StringComparison.OrdinalIgnoreCase))
                     return;
                 IsSelectedGameExecutableRunning = running;
                 SelectedGameProcessStatusText = line;

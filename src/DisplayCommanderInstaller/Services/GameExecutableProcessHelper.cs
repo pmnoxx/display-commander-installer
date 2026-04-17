@@ -2,7 +2,10 @@ using System.Diagnostics;
 
 namespace DisplayCommanderInstaller.Services;
 
-/// <summary>Finds processes whose image path matches a game executable (uses Win32 QueryFullProcessImageName when MainModule fails).</summary>
+/// <summary>
+/// Finds game-related processes by matching the resolved launcher .exe, or any .exe image under the game install folder
+/// (uses Win32 QueryFullProcessImageName when MainModule fails).
+/// </summary>
 public static class GameExecutableProcessHelper
 {
     /// <summary>UI poll interval while monitoring a selected game (running state + uptime text).</summary>
@@ -16,33 +19,89 @@ public static class GameExecutableProcessHelper
     /// <summary>
     /// Single pass over matching processes: running flag and a status line including wall-clock
     /// uptime since the earliest start when <see cref="Process.StartTime"/> is readable.
+    /// When <paramref name="gameInstallRoot"/> points to an existing directory, any running .exe whose image path
+    /// lies under that folder (recursively) is treated as the game running; otherwise only <paramref name="fullExePath"/> matches.
     /// </summary>
-    public static (bool running, string statusLine) GetExecutableProcessMonitorStatus(string fullExePath)
+    public static (bool running, string statusLine) GetExecutableProcessMonitorStatus(string fullExePath, string? gameInstallRoot = null)
     {
+        var rootNorm = TryNormalizeExistingDirectoryRoot(gameInstallRoot);
+        if (!string.IsNullOrEmpty(rootNorm))
+            return AccumulateRunningStatusFromProcesses(Process.GetProcesses(), p => IsDescendantExecutablePath(rootNorm, p));
+
         if (string.IsNullOrWhiteSpace(fullExePath))
             return (false, "Game process: not running");
 
-        var targetNorm = NormalizePathForCompare(fullExePath);
-        if (string.IsNullOrEmpty(targetNorm))
-            return (false, "Game process: not running");
-
-        var stem = Path.GetFileNameWithoutExtension(fullExePath);
+        var stem = StemOrEmpty(fullExePath);
         if (string.IsNullOrEmpty(stem))
             return (false, "Game process: not running");
 
+        return AccumulateRunningStatusFromProcesses(Process.GetProcessesByName(stem), p => ExactExecutablePath(fullExePath, p));
+    }
+
+    private static string StemOrEmpty(string fullExePath)
+    {
+        if (string.IsNullOrWhiteSpace(fullExePath))
+            return "";
+        return Path.GetFileNameWithoutExtension(fullExePath) ?? "";
+    }
+
+    private static bool ExactExecutablePath(string fullExePath, (string? path, Process p) ctx)
+    {
+        if (string.IsNullOrWhiteSpace(fullExePath))
+            return false;
+
+        var targetNorm = NormalizePathForCompare(fullExePath);
+        if (string.IsNullOrEmpty(targetNorm))
+            return false;
+
+        if (string.IsNullOrEmpty(ctx.path))
+            return false;
+        var otherNorm = NormalizePathForCompare(ctx.path);
+        return PathsEqual(targetNorm, otherNorm);
+    }
+
+    private static bool IsDescendantExecutablePath(string rootNorm, (string? path, Process p) ctx)
+    {
+        if (string.IsNullOrEmpty(ctx.path))
+            return false;
+        if (!string.Equals(Path.GetExtension(ctx.path), ".exe", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var fileNorm = NormalizePathForCompare(ctx.path);
+        if (string.IsNullOrEmpty(fileNorm) || fileNorm.Length <= rootNorm.Length)
+            return false;
+        if (!fileNorm.StartsWith(rootNorm, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var c = fileNorm[rootNorm.Length];
+        return c == Path.DirectorySeparatorChar || c == Path.AltDirectorySeparatorChar;
+    }
+
+    private static (bool running, string statusLine) AccumulateRunningStatusFromProcesses(
+        Process[] processes,
+        Func<(string? path, Process p), bool> includeProcess)
+    {
         var anyLiveMatch = false;
         DateTime? earliestUtc = null;
-        foreach (var p in Process.GetProcessesByName(stem))
+        foreach (var p in processes)
         {
             try
             {
-                var otherPath = TryGetProcessImagePath(p);
-                if (string.IsNullOrEmpty(otherPath))
-                    continue;
-                var otherNorm = NormalizePathForCompare(otherPath);
-                if (!PathsEqual(targetNorm, otherNorm))
-                    continue;
                 if (p.HasExited)
+                    continue;
+
+                string? imagePath;
+                try
+                {
+                    imagePath = TryGetProcessImagePath(p);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                var ctx = (path: imagePath, p);
+                if (!includeProcess(ctx))
                     continue;
 
                 anyLiveMatch = true;
@@ -78,6 +137,23 @@ public static class GameExecutableProcessHelper
         return (true, $"Game process: running ({FormatRunningDuration(dur)})");
     }
 
+    private static string? TryNormalizeExistingDirectoryRoot(string? gameInstallRoot)
+    {
+        if (string.IsNullOrWhiteSpace(gameInstallRoot))
+            return null;
+        try
+        {
+            var full = Path.GetFullPath(gameInstallRoot.Trim());
+            if (!Directory.Exists(full))
+                return null;
+            return NormalizePathForCompare(full);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string FormatRunningDuration(TimeSpan elapsed)
     {
         if (elapsed.TotalHours >= 1)
@@ -90,8 +166,17 @@ public static class GameExecutableProcessHelper
         return $"{sec}s";
     }
 
-    public static IReadOnlyList<int> GetMatchingProcessIds(string fullExePath)
+    /// <summary>
+    /// When <paramref name="gameInstallRoot"/> resolves to an existing directory, returns every live process whose
+    /// image is a <c>.exe</c> under that folder (same rules as monitoring). Otherwise matches only
+    /// <paramref name="fullExePath"/> exactly (after name filter).
+    /// </summary>
+    public static IReadOnlyList<int> GetMatchingProcessIds(string fullExePath, string? gameInstallRoot = null)
     {
+        var rootNorm = TryNormalizeExistingDirectoryRoot(gameInstallRoot);
+        if (!string.IsNullOrEmpty(rootNorm))
+            return CollectProcessIdsUnderInstallRoot(rootNorm);
+
         var result = new List<int>();
         if (string.IsNullOrWhiteSpace(fullExePath))
             return result;
@@ -114,6 +199,44 @@ public static class GameExecutableProcessHelper
                 var otherNorm = NormalizePathForCompare(otherPath);
                 if (PathsEqual(targetNorm, otherNorm))
                     result.Add(p.Id);
+            }
+            catch
+            {
+                // ignore
+            }
+            finally
+            {
+                p.Dispose();
+            }
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<int> CollectProcessIdsUnderInstallRoot(string rootNorm)
+    {
+        var result = new List<int>();
+        foreach (var p in Process.GetProcesses())
+        {
+            try
+            {
+                if (p.HasExited)
+                    continue;
+
+                string? otherPath;
+                try
+                {
+                    otherPath = TryGetProcessImagePath(p);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!IsDescendantExecutablePath(rootNorm, (otherPath, p)))
+                    continue;
+
+                result.Add(p.Id);
             }
             catch
             {
@@ -165,9 +288,10 @@ public static class GameExecutableProcessHelper
     private static bool PathsEqual(string a, string b) =>
         string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
-    public static void TryCloseMainWindows(string fullExePath)
+    /// <param name="gameInstallRoot">When set to a valid install directory, closes main windows for every matching <c>.exe</c> under that tree; otherwise only <paramref name="fullExePath"/>.</param>
+    public static void TryCloseMainWindows(string fullExePath, string? gameInstallRoot = null)
     {
-        foreach (var id in GetMatchingProcessIds(fullExePath))
+        foreach (var id in GetMatchingProcessIds(fullExePath, gameInstallRoot))
         {
             try
             {
@@ -182,9 +306,10 @@ public static class GameExecutableProcessHelper
         }
     }
 
-    public static void TryKillProcesses(string fullExePath)
+    /// <param name="gameInstallRoot">When set to a valid install directory, kills every matching <c>.exe</c> under that tree (entire process tree each); otherwise only <paramref name="fullExePath"/>.</param>
+    public static void TryKillProcesses(string fullExePath, string? gameInstallRoot = null)
     {
-        foreach (var id in GetMatchingProcessIds(fullExePath))
+        foreach (var id in GetMatchingProcessIds(fullExePath, gameInstallRoot))
         {
             try
             {

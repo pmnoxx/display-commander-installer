@@ -22,3 +22,6 @@ BundleArtifacts/
 *.appx
 *.msix
 *.pfx
+
+## docs
+docs/
