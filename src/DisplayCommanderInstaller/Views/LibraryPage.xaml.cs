@@ -111,7 +111,7 @@ public sealed partial class LibraryPage : Page
             effectiveBitness);
 
         var proxy = Vm.GetEffectiveDisplayCommanderProxyDllForSelection();
-        var state = install.GetInstallState(gameDir, proxy, out _);
+        var state = install.GetInstallState(gameDir, proxy);
         var allowForeign = false;
         if (state == WinMmInstallKind.UnknownForeign)
         {
@@ -186,7 +186,7 @@ public sealed partial class LibraryPage : Page
             if (last is not null)
                 throw last;
             ActionStatus.Visibility = Visibility.Visible;
-            ActionStatus.Text = "Removed Display Commander proxy DLL and installer marker.";
+            ActionStatus.Text = "Removed Display Commander proxy DLL.";
             Vm.RefreshWinMmInstallStatus();
         }
         catch (Exception ex)
