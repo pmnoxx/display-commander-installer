@@ -38,4 +38,4 @@ You can also use `dotnet run --project src/DisplayCommanderInstaller/DisplayComm
 
 ## Community
 
-Join the Display Commander Discord: [https://discord.gg/mHMaF6nZ](https://discord.gg/mHMaF6nZ)
+Join the Display Commander Discord: [https://discord.gg/bzXAdDqtyY](https://discord.gg/bzXAdDqtyY)
