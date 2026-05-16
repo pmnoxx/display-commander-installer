@@ -15,6 +15,7 @@ public static class DisplayCommanderManagedProxyDlls
         "version.dll",
         "dbghelp.dll",
         "vulkan-1.dll",
+        "opengl32.dll",
     ];
 
     public static IReadOnlyList<string> AllFileNames => All;

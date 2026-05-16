@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-05-15
+
+### Added
+
+- **Settings → Proxy DLL** and **Library → Proxy DLL (this game)** support **`opengl32.dll`** as a managed Display Commander proxy (alongside winmm, DXGI/D3D proxies, version, dbghelp, and vulkan-1). Product-name detection also recognizes installs deployed under `opengl32.dll`.
+
 ## [0.0.5] - 2026-04-15
 
 ### Added

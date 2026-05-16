@@ -24,6 +24,7 @@ public sealed class DisplayCommanderInstallService
         "version.dll",
         "dbghelp.dll",
         "vulkan-1.dll",
+        "opengl32.dll",
     ];
 
     private static readonly HttpClient Http = CreateHttpClient();
