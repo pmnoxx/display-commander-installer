@@ -1,5 +1,7 @@
 # Display Commander Installer (prototype)
 
+[![Discord](https://img.shields.io/discord/1487722129284665544?logo=discord&logoColor=%23fff&label=Discord&labelColor=%235865F2)](https://discord.gg/bzXAdDqtyY)
+
 Desktop installer for [Display Commander](https://github.com/pmnoxx/display-commander). It helps install update Display Commander, Reshade, and other addons.
 
 ## Supported stores
@@ -34,8 +36,3 @@ For a self-contained **.NET** + WASDK folder to zip, use **publish** (see earlie
 and ship the entire **`publish`** folder.
 
 You can also use `dotnet run --project src/DisplayCommanderInstaller/DisplayCommanderInstaller.csproj -p:Platform=x64` (Windows only).
-
-
-## Community
-
-Join the Display Commander Discord: [https://discord.gg/bzXAdDqtyY](https://discord.gg/bzXAdDqtyY)
