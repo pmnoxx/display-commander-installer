@@ -24,10 +24,13 @@ public sealed partial class SettingsPage : Page
         UrlBox.Text = AppServices.Settings.DisplayCommanderDownloadUrl;
         PerGameFolderCheck.IsChecked = AppServices.DisplayCommanderConfigMarker.UsePerGameFolder;
         GlobalShadersCheck.IsChecked = AppServices.DisplayCommanderConfigMarker.UseGlobalShaders;
-        var names = DisplayCommanderManagedProxyDlls.AllFileNames.ToList();
-        ProxyDllCombo.ItemsSource = names;
+        var items = new List<string> { DisplayCommanderManagedProxyDlls.AllProxiesComboLabel };
+        items.AddRange(DisplayCommanderManagedProxyDlls.AllFileNames);
+        ProxyDllCombo.ItemsSource = items;
         var current = AppServices.Settings.DisplayCommanderProxyDllFileName;
-        ProxyDllCombo.SelectedItem = names.First(n => n.Equals(current, StringComparison.OrdinalIgnoreCase));
+        ProxyDllCombo.SelectedItem = DisplayCommanderManagedProxyDlls.IsAllProxiesChoice(current)
+            ? DisplayCommanderManagedProxyDlls.AllProxiesComboLabel
+            : items.First(i => i.Equals(current, StringComparison.OrdinalIgnoreCase));
         RefreshReShadeStatus();
         _uiInit = false;
     }
@@ -63,7 +66,10 @@ public sealed partial class SettingsPage : Page
             return;
         try
         {
-            AppServices.Settings.DisplayCommanderProxyDllFileName = name;
+            var stored = DisplayCommanderManagedProxyDlls.AllProxiesComboLabel.Equals(name, StringComparison.OrdinalIgnoreCase)
+                ? DisplayCommanderManagedProxyDlls.AllProxiesSentinel
+                : name;
+            AppServices.Settings.DisplayCommanderProxyDllFileName = stored;
             SettingsStatus.Text = $"Proxy DLL set to {name}.";
             SettingsStatus.Visibility = Visibility.Visible;
         }

@@ -53,12 +53,16 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
     private static IReadOnlyList<string> BuildDisplayCommanderProxyDllComboItems()
     {
         var def = AppServices.Settings.DisplayCommanderProxyDllFileName;
-        var list = new List<string> { $"Default({def})" };
+        var list = new List<string>
+        {
+            DisplayCommanderManagedProxyDlls.AllProxiesComboLabel,
+            $"Default({DisplayCommanderManagedProxyDlls.FormatChoiceForDisplay(def)})",
+        };
         list.AddRange(DisplayCommanderManagedProxyDlls.AllFileNames);
         return list;
     }
 
-    /// <summary>Refreshes the proxy combo first row (<c>Default(xxx.dll)</c> from Settings) and re-syncs selection after <see cref="DisplayCommanderProxyDllComboItems"/> is rebound.</summary>
+    /// <summary>Refreshes the proxy combo (<c>All proxies</c>, <c>Default(…)</c> from Settings, then each DLL) and re-syncs selection after <see cref="DisplayCommanderProxyDllComboItems"/> is rebound.</summary>
     public void RefreshDisplayCommanderProxyDllComboShell()
     {
         OnPropertyChanged(nameof(DisplayCommanderProxyDllComboItems));
@@ -462,25 +466,30 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
             ovr = AppServices.DisplayCommanderProxyDllOverrides.TryGetCustom(SelectedCustomGame.Id);
 
         if (ovr is null)
+            return 1;
+
+        if (DisplayCommanderManagedProxyDlls.IsAllProxiesChoice(ovr))
             return 0;
 
         var names = DisplayCommanderManagedProxyDlls.AllFileNames;
         for (var i = 0; i < names.Count; i++)
         {
             if (names[i].Equals(ovr, StringComparison.OrdinalIgnoreCase))
-                return i + 1;
+                return i + 2;
         }
 
-        return 0;
+        return 1;
     }
 
     private void PersistDisplayCommanderProxyDllComboSelection(int comboIndex)
     {
         string? proxy = null;
-        if (comboIndex > 0)
+        if (comboIndex == 0)
+            proxy = DisplayCommanderManagedProxyDlls.AllProxiesSentinel;
+        else if (comboIndex >= 2)
         {
             var names = DisplayCommanderManagedProxyDlls.AllFileNames;
-            var i = comboIndex - 1;
+            var i = comboIndex - 2;
             if (i < names.Count)
                 proxy = names[i];
         }
@@ -622,6 +631,27 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         IsSteamSelected ? SelectedSteamGame?.CommonInstallPath :
         IsCustomSelected ? SelectedCustomGame?.InstallLocation :
         null;
+
+    public bool ShowProcessInjectionToggle =>
+        HasSelectedGame && !string.IsNullOrWhiteSpace(SelectedInstallRoot);
+
+    /// <summary>Synced with injection_list.txt next to Display Commander (%LocalAppData%\Programs\Display_Commander).</summary>
+    public bool InjectionIntoProcessEnabled
+    {
+        get
+        {
+            if (!ShowProcessInjectionToggle || SelectedInstallRoot is null)
+                return false;
+            return AppServices.InjectionList.ContainsGameDirectory(SelectedInstallRoot);
+        }
+        set
+        {
+            if (!ShowProcessInjectionToggle || SelectedInstallRoot is null)
+                return;
+            AppServices.InjectionList.SetGameDirectoryListed(SelectedInstallRoot, value);
+            OnPropertyChanged(nameof(InjectionIntoProcessEnabled));
+        }
+    }
 
     public string SelectedGameReShadeFolder =>
         string.IsNullOrWhiteSpace(SelectedInstallRoot)
@@ -1080,6 +1110,8 @@ public partial class UnifiedLibraryPageViewModel : ObservableObject
         OnPropertyChanged(nameof(IsResolvingPrimaryExecutable));
         OnPropertyChanged(nameof(CanInstallDisplayCommander));
         OnPropertyChanged(nameof(CanRemoveDisplayCommander));
+        OnPropertyChanged(nameof(ShowProcessInjectionToggle));
+        OnPropertyChanged(nameof(InjectionIntoProcessEnabled));
         OnPropertyChanged(nameof(ShowDisplayCommanderAddonModeUi));
         OnPropertyChanged(nameof(DisplayCommanderAddonPayloadModeIndex));
         OnPropertyChanged(nameof(DisplayCommanderAddonChoiceSummary));

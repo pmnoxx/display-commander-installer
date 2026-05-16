@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **All proxies**: **Settings → Proxy DLL** and **Library → Proxy DLL (this game)** offer **All proxies** as the first choice — the download is written as **every** managed proxy filename at once (`winmm`, `dxgi`, `d3d9`, `version`, `dbghelp`, `vulkan-1`, `opengl32`; not `d3d11`/`d3d12`, which can clash with `dxgi`). The **Default(…)** row is second and still follows the Settings default when no per-game override is set. **Remove** deletes **all** Display Commander managed proxy files present among known names. Foreign DLL conflicts for any targeted name are surfaced in **one** overwrite prompt before install.
+- **Inject into process (WIP)** on the library game detail: toggles whether the game’s install folder is listed in **injection_list.txt** next to Display Commander (`%LocalAppData%\Programs\Display_Commander\`) for a future injection service.
+
 ## [0.0.6] - 2026-05-15
 
 ### Added

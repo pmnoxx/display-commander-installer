@@ -24,5 +24,6 @@ public static class AppServices
     public static DisplayCommanderAddonBitnessOverrideStore DisplayCommanderAddonBitnessOverrides { get; } = new();
     public static DisplayCommanderProxyDllOverrideStore DisplayCommanderProxyDllOverrides { get; } = new();
     public static PerGameAdvancedSettingsStore PerGameAdvanced { get; } = new();
+    public static InjectionListStore InjectionList { get; } = new();
     public static GameExecutableIconCache GameExecutableIcons { get; } = new();
 }

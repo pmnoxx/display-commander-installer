@@ -111,14 +111,19 @@ public sealed partial class LibraryPage : Page
             effectiveBitness);
 
         var proxy = Vm.GetEffectiveDisplayCommanderProxyDllForSelection();
-        var state = install.GetInstallState(gameDir, proxy);
+        var conflicts = install.ListForeignProxyConflicts(gameDir, proxy);
         var allowForeign = false;
-        if (state == WinMmInstallKind.UnknownForeign)
+        if (conflicts.Count > 0)
         {
+            var title = conflicts.Count == 1
+                ? $"{conflicts[0]} already exists"
+                : "Proxy DLL files already exist";
+            var bulletList = string.Join("\n", conflicts.Select(static c => "• " + c));
             var dlg = new ContentDialog
             {
-                Title = $"{proxy} already exists",
-                Content = $"Another file named {proxy} is present. Overwrite it with Display Commander?",
+                Title = title,
+                Content =
+                    $"Another file is present at:\n{bulletList}\n\nOverwrite with Display Commander?",
                 PrimaryButtonText = "Overwrite",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,

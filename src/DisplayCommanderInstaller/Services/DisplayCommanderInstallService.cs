@@ -36,10 +36,10 @@ public sealed class DisplayCommanderInstallService
         return c;
     }
 
-    /// <summary>State of <paramref name="proxyDllFileName"/> in the game folder (must be a managed proxy name).</summary>
+    /// <summary>State of <paramref name="proxyDllFileName"/> in the game folder (must be a managed proxy name, not <see cref="DisplayCommanderManagedProxyDlls.AllProxiesSentinel"/>).</summary>
     public WinMmInstallKind GetInstallState(string gameDirectory, string proxyDllFileName)
     {
-        if (!DisplayCommanderManagedProxyDlls.TryNormalize(proxyDllFileName, out var normalized))
+        if (!DisplayCommanderManagedProxyDlls.TryNormalizeDllFileName(proxyDllFileName, out var normalized))
             return WinMmInstallKind.UnknownForeign;
 
         var dllPath = Path.Combine(gameDirectory, normalized);
@@ -49,6 +49,30 @@ public sealed class DisplayCommanderInstallService
         return IsDisplayCommanderProxyDll(dllPath)
             ? WinMmInstallKind.Ours
             : WinMmInstallKind.UnknownForeign;
+    }
+
+    /// <summary>Files under <paramref name="gameDirectory"/> that block install (foreign non–Display Commander DLL at a managed name).</summary>
+    public IReadOnlyList<string> ListForeignProxyConflicts(string gameDirectory, string proxyChoiceNormalized)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameDirectory);
+        if (!DisplayCommanderManagedProxyDlls.TryNormalize(proxyChoiceNormalized, out var choice))
+            return [];
+
+        if (DisplayCommanderManagedProxyDlls.IsAllProxiesChoice(choice))
+        {
+            var list = new List<string>();
+            foreach (var name in DisplayCommanderManagedProxyDlls.AllFileNames)
+            {
+                if (GetInstallState(gameDirectory, name) == WinMmInstallKind.UnknownForeign)
+                    list.Add(name);
+            }
+
+            return list;
+        }
+
+        return GetInstallState(gameDirectory, choice) == WinMmInstallKind.UnknownForeign
+            ? [choice]
+            : [];
     }
 
     /// <summary>True when the folder contains a Display Commander proxy managed by this app.</summary>
@@ -74,6 +98,9 @@ public sealed class DisplayCommanderInstallService
         if (!DisplayCommanderManagedProxyDlls.TryNormalize(preferredProxyDllFileName, out var preferred))
             preferred = DisplayCommanderManagedProxyDlls.DefaultFileName;
 
+        if (DisplayCommanderManagedProxyDlls.IsAllProxiesChoice(preferred))
+            return GetLibraryProxyStatusTextAllManaged(gameDirectory);
+
         if (TryReadVerifiedOurs(gameDirectory, out var actualProxy))
         {
             var line = FormatOursInstallStatus(gameDirectory, actualProxy);
@@ -93,6 +120,42 @@ public sealed class DisplayCommanderInstallService
                 $"{preferred} is present but is not from this installer."),
             _ => "",
         };
+    }
+
+    private static string GetLibraryProxyStatusTextAllManaged(string gameDir)
+    {
+        var ours = new List<string>();
+        foreach (var name in DisplayCommanderManagedProxyDlls.AllFileNames)
+        {
+            var dllPath = Path.Combine(gameDir, name);
+            if (!File.Exists(dllPath))
+                continue;
+            if (IsDisplayCommanderProxyDll(dllPath))
+                ours.Add(name);
+        }
+
+        const string nextLine = "\nNext install deploys every managed proxy DLL name (same payload).";
+
+        if (ours.Count == 0)
+        {
+            if (TryFindInstalledProxyByProductNameStatic(gameDir, out var detectedProxy, out var versionSummary))
+            {
+                var line = $"Display Commander is installed as {detectedProxy} (detected from Product Name).";
+                line = string.IsNullOrEmpty(versionSummary) ? line : $"{line}\n{versionSummary}";
+                return $"{line}{nextLine}";
+            }
+
+            return $"No Display Commander managed proxies in this folder.{nextLine}";
+        }
+
+        var total = DisplayCommanderManagedProxyDlls.AllFileNames.Count;
+        var summary = ours.Count >= total
+            ? $"Display Commander is installed as all {total} managed proxy files (managed by this app)."
+            : $"Display Commander is installed as {ours.Count} of {total} managed proxy files: {string.Join(", ", ours)} (managed by this app).";
+
+        var ver = TryGetManagedPayloadFileVersionSummaryStatic(gameDir, ours[0]);
+        summary = string.IsNullOrEmpty(ver) ? summary : $"{summary}\n{ver}";
+        return summary;
     }
 
     private static string FormatOursInstallStatus(string gameDir, string proxy) =>
@@ -120,7 +183,7 @@ public sealed class DisplayCommanderInstallService
 
     private static string? TryGetManagedPayloadFileVersionSummaryStatic(string gameDirectory, string proxyDllFileName)
     {
-        if (!DisplayCommanderManagedProxyDlls.TryNormalize(proxyDllFileName, out var normalized))
+        if (!DisplayCommanderManagedProxyDlls.TryNormalizeDllFileName(proxyDllFileName, out var normalized))
             return null;
 
         var dllPath = Path.Combine(gameDirectory, normalized);
@@ -201,17 +264,18 @@ public sealed class DisplayCommanderInstallService
 
         Directory.CreateDirectory(gameDirectory);
 
-        var dllPath = Path.Combine(gameDirectory, normalized);
-
-        if (TryReadVerifiedOurs(gameDirectory, out var previousProxy))
+        if (DisplayCommanderManagedProxyDlls.IsAllProxiesChoice(normalized))
         {
-            if (!previousProxy.Equals(normalized, StringComparison.OrdinalIgnoreCase))
-            {
-                var oldPath = Path.Combine(gameDirectory, previousProxy);
-                progress?.Report($"Removing previous Display Commander proxy ({previousProxy})…");
-                TryDelete(oldPath);
-            }
+            await DownloadAndInstallAllManagedProxiesAsync(
+                gameDirectory,
+                downloadUrl,
+                allowOverwriteForeign,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            return;
         }
+
+        RemoveManagedProxiesExcept(gameDirectory, normalized);
 
         var state = GetInstallState(gameDirectory, normalized);
         if (state == WinMmInstallKind.UnknownForeign && !allowOverwriteForeign)
@@ -228,6 +292,7 @@ public sealed class DisplayCommanderInstallService
                 await remote.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
             }
 
+            var dllPath = Path.Combine(gameDirectory, normalized);
             if (File.Exists(dllPath) && state == WinMmInstallKind.Ours)
             {
                 var remoteVersion = TryGetDisplayCommanderVersionStatic(temp);
@@ -249,13 +314,103 @@ public sealed class DisplayCommanderInstallService
         }
     }
 
+    private async Task DownloadAndInstallAllManagedProxiesAsync(
+        string gameDirectory,
+        string downloadUrl,
+        bool allowOverwriteForeign,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        foreach (var name in DisplayCommanderManagedProxyDlls.AllFileNames)
+        {
+            var state = GetInstallState(gameDirectory, name);
+            if (state == WinMmInstallKind.UnknownForeign && !allowOverwriteForeign)
+                throw new InvalidOperationException(
+                    $"{name} already exists and is not managed by this installer.");
+        }
+
+        progress?.Report("Downloading Display Commander…");
+        var temp = Path.Combine(Path.GetTempPath(), "dc_install_" + Guid.NewGuid().ToString("N") + ".bin");
+        try
+        {
+            await using (var fs = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await using var remote = await Http.GetStreamAsync(new Uri(downloadUrl), cancellationToken).ConfigureAwait(false);
+                await remote.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+            }
+
+            var remoteVersion = TryGetDisplayCommanderVersionStatic(temp);
+            var allOursUpToDate = true;
+            foreach (var name in DisplayCommanderManagedProxyDlls.AllFileNames)
+            {
+                var dllPath = Path.Combine(gameDirectory, name);
+                if (!File.Exists(dllPath) || GetInstallState(gameDirectory, name) != WinMmInstallKind.Ours)
+                {
+                    allOursUpToDate = false;
+                    break;
+                }
+
+                var existingVersion = TryGetDisplayCommanderVersionStatic(dllPath);
+                if (string.IsNullOrWhiteSpace(remoteVersion)
+                    || !remoteVersion.Equals(existingVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    allOursUpToDate = false;
+                    break;
+                }
+            }
+
+            if (allOursUpToDate)
+            {
+                progress?.Report("Already up to date.");
+                return;
+            }
+
+            foreach (var name in DisplayCommanderManagedProxyDlls.AllFileNames)
+            {
+                progress?.Report($"Installing {name}…");
+                var dllPath = Path.Combine(gameDirectory, name);
+                File.Copy(temp, dllPath, overwrite: true);
+            }
+        }
+        finally
+        {
+            TryDelete(temp);
+        }
+    }
+
+    /// <summary>Deletes every Display Commander–managed proxy among known names except <paramref name="keepNormalizedDllFileName"/>.</summary>
+    private static void RemoveManagedProxiesExcept(string gameDirectory, string keepNormalizedDllFileName)
+    {
+        foreach (var candidate in DisplayCommanderManagedProxyDlls.AllFileNames)
+        {
+            if (candidate.Equals(keepNormalizedDllFileName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var dllPath = Path.Combine(gameDirectory, candidate);
+            if (!File.Exists(dllPath))
+                continue;
+            if (!IsDisplayCommanderProxyDll(dllPath))
+                continue;
+
+            TryDelete(dllPath);
+        }
+    }
+
     public void RemoveIfOurs(string gameDirectory)
     {
-        if (!TryReadVerifiedOurs(gameDirectory, out var proxy))
+        if (!TryReadVerifiedOurs(gameDirectory, out _))
             throw new InvalidOperationException("No Display Commander-managed proxy found in this folder.");
 
-        var dllPath = Path.Combine(gameDirectory, proxy);
-        TryDelete(dllPath);
+        foreach (var candidate in DisplayCommanderManagedProxyDlls.AllFileNames)
+        {
+            var dllPath = Path.Combine(gameDirectory, candidate);
+            if (!File.Exists(dllPath))
+                continue;
+            if (!IsDisplayCommanderProxyDll(dllPath))
+                continue;
+
+            TryDelete(dllPath);
+        }
     }
 
     /// <summary>PE version resource from the proxy DLL on disk (e.g. winmm.dll) when that file exists.</summary>

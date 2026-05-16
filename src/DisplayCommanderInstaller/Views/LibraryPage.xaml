@@ -273,6 +273,12 @@
                             HorizontalAlignment="Left"
                             ItemsSource="{x:Bind Vm.DisplayCommanderProxyDllComboItems, Mode=OneWay}"
                             SelectedIndex="{x:Bind Vm.DisplayCommanderProxyDllComboSelectedIndex, Mode=TwoWay}" />
+                        <ToggleSwitch
+                            Header="Inject into process (WIP)"
+                            automation:AutomationProperties.Name="Inject into process, work in progress"
+                            automation:AutomationProperties.HelpText="Adds or removes this game's install folder in injection_list.txt next to Display Commander."
+                            IsEnabled="{x:Bind Vm.ShowProcessInjectionToggle, Mode=OneWay}"
+                            IsOn="{x:Bind Vm.InjectionIntoProcessEnabled, Mode=TwoWay}" />
                         <RadioButtons Header="Display Commander download" MaxColumns="3" SelectedIndex="{x:Bind Vm.DisplayCommanderAddonPayloadModeIndex, Mode=TwoWay}">
                             <x:String>Auto (exe)</x:String>
                             <x:String>32-bit</x:String>

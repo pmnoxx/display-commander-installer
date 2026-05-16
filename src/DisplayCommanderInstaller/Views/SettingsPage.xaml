@@ -36,7 +36,7 @@
             <TextBlock
                 Opacity="0.75"
                 Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="Default proxy DLL for new installs when a game has no per-game choice on the Library page. Installing a new choice removes any other Display Commander proxy this app previously installed in that folder (winmm, dxgi, d3d9, d3d11, d3d12, version, dbghelp, vulkan-1, opengl32)."
+                Text="Default proxy DLL for new installs when a game has no per-game choice on the Library page (Library row Default(…) follows this). All proxies deploys the same payload as every managed name at once. Installing a single DLL removes other Display Commander proxies this app previously installed in that folder (winmm, dxgi, d3d9, version, dbghelp, vulkan-1, opengl32)."
                 TextWrapping="WrapWholeWords" />
             <ComboBox
                 x:Name="ProxyDllCombo"
