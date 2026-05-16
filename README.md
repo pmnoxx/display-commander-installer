@@ -1,6 +1,6 @@
 # Display Commander Installer (prototype)
 
-[![Discord](https://img.shields.io/discord/1487722129284665544?logo=discord&logoColor=%23fff&label=Discord&labelColor=%235865F2)](https://discord.gg/bzXAdDqtyY)
+[![Build](https://github.com/pmnoxx/display-commander-installer/actions/workflows/build.yml/badge.svg)](https://github.com/pmnoxx/display-commander-installer/actions/workflows/build.yml) [![Discord](https://img.shields.io/discord/1487722129284665544?logo=discord&logoColor=%23fff&label=Discord&labelColor=%235865F2)](https://discord.gg/bzXAdDqtyY)
 
 Desktop installer for [Display Commander](https://github.com/pmnoxx/display-commander). It helps install update Display Commander, Reshade, and other addons.
 
